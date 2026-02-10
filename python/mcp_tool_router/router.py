@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import queue
+import re
 import shlex
 import subprocess
 import threading
@@ -183,21 +184,27 @@ def _toolcard_from_mcp(server_id: str, tool: dict[str, Any]) -> dict[str, Any]:
   if not tool_name:
     return {}
   annotations = tool.get("annotations") or {}
+  title = tool.get("title") or annotations.get("title")
+  description = tool.get("description") or annotations.get("description")
+  tags = sorted(_string_list(tool.get("tags") or annotations.get("tags")))
+  synonyms = sorted(_string_list(tool.get("synonyms") or annotations.get("synonyms")))
+  if not tags:
+    tags = _derive_tags(tool_name, title, description)
+  if not synonyms:
+    synonyms = _derive_synonyms(tool_name)
   tool_id = f"{server_id}:{tool_name}"
   card: dict[str, Any] = {
     "toolId": tool_id,
     "toolName": tool_name,
     "serverId": server_id,
-    "tags": sorted(_string_list(tool.get("tags") or annotations.get("tags"))),
-    "synonyms": sorted(_string_list(tool.get("synonyms") or annotations.get("synonyms"))),
+    "tags": tags,
+    "synonyms": synonyms,
     "args": _args_from_schema(tool.get("inputSchema") or tool.get("input_schema") or {}),
     "examples": _examples_from_tool(tool.get("examples") or annotations.get("examples")),
     "authHint": sorted(_string_list(tool.get("authHint") or annotations.get("authHint"))),
   }
-  title = tool.get("title") or annotations.get("title")
   if title:
     card["title"] = str(title)
-  description = tool.get("description") or annotations.get("description")
   if description:
     card["description"] = str(description)
   side_effect = tool.get("sideEffect") or annotations.get("sideEffect")
@@ -234,6 +241,72 @@ def _string_list(value: Any) -> list[str]:
   if isinstance(value, Iterable):
     return [str(item) for item in value if item is not None]
   return [str(value)]
+
+
+_DERIVED_STOPWORDS = {
+  "a",
+  "an",
+  "and",
+  "by",
+  "for",
+  "from",
+  "in",
+  "into",
+  "of",
+  "on",
+  "or",
+  "per",
+  "the",
+  "to",
+  "via",
+  "with",
+}
+
+
+def _normalize_text(value: str) -> str:
+  if not value:
+    return ""
+  normalized = re.sub(r"[_-]+", " ", value)
+  normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", normalized)
+  normalized = re.sub(r"([A-Za-z])([0-9])", r"\1 \2", normalized)
+  normalized = re.sub(r"([0-9])([A-Za-z])", r"\1 \2", normalized)
+  normalized = normalized.lower()
+  normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
+  return normalized.strip()
+
+
+def _tokenize_keywords(*parts: Any) -> list[str]:
+  text = " ".join(str(part) for part in parts if part)
+  normalized = _normalize_text(text)
+  if not normalized:
+    return []
+  tokens: list[str] = []
+  for token in normalized.split():
+    if len(token) < 2:
+      continue
+    if token in _DERIVED_STOPWORDS:
+      continue
+    tokens.append(token)
+  return tokens
+
+
+def _derive_tags(tool_name: str, title: Any, description: Any) -> list[str]:
+  tokens = _tokenize_keywords(tool_name, title)
+  if len(tokens) < 3:
+    tokens.extend(_tokenize_keywords(description))
+  if not tokens:
+    return []
+  return sorted(set(tokens))
+
+
+def _derive_synonyms(tool_name: str) -> list[str]:
+  if not tool_name:
+    return []
+  normalized = _normalize_text(tool_name)
+  synonyms = set()
+  if normalized and normalized != tool_name.lower():
+    synonyms.add(normalized)
+  return sorted(synonyms)
 
 
 def _args_from_schema(schema: dict[str, Any]) -> list[dict[str, Any]]:

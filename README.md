@@ -17,6 +17,18 @@ BM25 search, working-set management, and deterministic result reduction.
 - No embedding or hybrid vector search (BM25 first)
 - The TS core does not manage MCP server connections (Python does)
 
+## Minimum MCP tool fields
+
+To keep external MCP integrations low-friction, the router only requires MCP-standard fields:
+
+- `name`
+- `description` (optional but recommended)
+- `inputSchema` (or `input_schema`)
+
+Everything else is optional. If `tags`/`synonyms`/`examples`/`authHint` are missing,
+the Python sync layer derives lightweight `tags` and `synonyms` from `name`/`title`/`description`
+so lexical search remains effective.
+
 ## Architecture
 
 - **TypeScript core**: catalog, BM25, working set, result policy, safety hints
