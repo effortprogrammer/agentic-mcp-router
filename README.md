@@ -35,6 +35,33 @@ Set `ROUTERD` to override the daemon command, for example:
 ```bash
 ROUTERD="tool-routerd" python examples/quickstart.py
 ```
+
+## Sequence diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Py as Python ToolRouter
+    participant D as tool-routerd (JSON-RPC stdio)
+    participant Core as TS Core (catalog/search/ws/reducer)
+
+    User->>Py: ToolRouter(...)
+    Py->>D: (spawn on first RPC)
+    User->>Py: sync_from_mcp(server, mcp_client)
+    Py->>Py: mcp_client.tools_list()
+    Py->>D: catalog.upsertTools(ToolCard[])
+    D->>Core: upsert tools + build docs
+
+    User->>Py: select_tools(session, query)
+    Py->>D: ws.update(query, topK, budget)
+    D->>Core: BM25 search + working set update
+    D-->>Py: selectedToolIds
+
+    User->>Py: reduce_result(toolId, rawResult)
+    Py->>D: result.reduce(...)
+    D->>Core: normalize + structured-first + truncate
+    D-->>Py: ReducedToolResult
+```
 ## Repository layout
 
 ```
