@@ -10,46 +10,34 @@ PYTHON_SRC = ROOT / "python"
 if str(PYTHON_SRC) not in sys.path:
   sys.path.insert(0, str(PYTHON_SRC))
 
-from mcp_tool_router import HttpMcpClient, StdioMcpClient, ToolRouter  # noqa: E402
+from mcp_tool_router import HttpMcpClient, ToolRouter  # noqa: E402
 
 
 def main() -> int:
   routerd_cmd = os.environ.get("ROUTERD", "node packages/daemon/dist/cli.js")
   server_id = os.environ.get("MCP_SERVER_ID", "mcp")
-  transport = os.environ.get("MCP_TRANSPORT", "stdio").lower()
   init_payload = None
   init_raw = os.environ.get("MCP_INIT")
   if init_raw:
     init_payload = json.loads(init_raw)
   send_initialized = os.environ.get("MCP_INITIALIZED", "").lower() in {"1", "true", "yes"}
 
-  if transport == "http":
-    server_url = os.environ.get("MCP_SERVER_URL")
-    if not server_url:
-      print("Set MCP_SERVER_URL for http transport.")
-      return 1
-    headers = {}
-    headers_raw = os.environ.get("MCP_HEADERS")
-    if headers_raw:
-      headers = json.loads(headers_raw)
-    timeout = os.environ.get("MCP_TIMEOUT")
-    client = HttpMcpClient(
-      server_url,
-      headers=headers,
-      timeout=float(timeout) if timeout else None,
-      init_payload=init_payload,
-      send_initialized=send_initialized,
-    )
-  else:
-    server_cmd = os.environ.get("MCP_SERVER_CMD")
-    if not server_cmd:
-      print("Set MCP_SERVER_CMD for stdio transport.")
-      return 1
-    client = StdioMcpClient(
-      server_cmd,
-      init_payload=init_payload,
-      send_initialized=send_initialized,
-    )
+  server_url = os.environ.get("MCP_SERVER_URL")
+  if not server_url:
+    print("Set MCP_SERVER_URL for http transport.")
+    return 1
+  headers = {}
+  headers_raw = os.environ.get("MCP_HEADERS")
+  if headers_raw:
+    headers = json.loads(headers_raw)
+  timeout = os.environ.get("MCP_TIMEOUT")
+  client = HttpMcpClient(
+    server_url,
+    headers=headers,
+    timeout=float(timeout) if timeout else None,
+    init_payload=init_payload,
+    send_initialized=send_initialized,
+  )
 
   router = ToolRouter(routerd_path=routerd_cmd)
 

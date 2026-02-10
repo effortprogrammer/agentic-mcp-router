@@ -32,7 +32,7 @@ so lexical search remains effective.
 ## Architecture
 
 - **TypeScript core**: catalog, BM25, working set, result policy, safety hints
-- **Router daemon**: `tool-routerd` JSON-RPC over stdio (optional HTTP)
+- **Router daemon**: `tool-routerd` JSON-RPC over stdio (local IPC)
 - **Python wrapper**: MCP sync, LLM orchestration, daemon lifecycle
 
 
@@ -45,23 +45,14 @@ npm install
 npm run build
 ```
 
-Then run the Python example (requires a real MCP server):
+Then run the Python example (requires a real MCP HTTP server):
 
 ```bash
 python examples/quickstart.py
 ```
 
-For stdio servers:
-
 ```bash
-MCP_SERVER_CMD="your-mcp-server --stdio" python examples/quickstart.py
-```
-
-For HTTP servers:
-
-```bash
-MCP_TRANSPORT=http MCP_SERVER_URL="https://mcp.example.com/jsonrpc" \
-  python examples/quickstart.py
+MCP_SERVER_URL="https://mcp.example.com/jsonrpc" python examples/quickstart.py
 ```
 
 Set `ROUTERD` to override the daemon command, for example:
@@ -78,12 +69,6 @@ Example registry (`examples/mcp-servers.yaml`):
 
 ```yaml
 servers:
-  - id: slack
-    cmd: "npx @modelcontextprotocol/server-slack --stdio"
-    enabled: true
-  - id: filesystem
-    cmd: "npx @modelcontextprotocol/server-filesystem --stdio"
-    enabled: true
   - id: remote-mcp
     transport: http
     url: "https://mcp.example.com/jsonrpc"
@@ -104,23 +89,23 @@ result = hub.call_tool(tool_ids[0], {"query": "latest report"})
 ```
 
 Notes:
-- `stdio` and `http` transports are supported.
+- Only `http` transport is supported for MCP servers.
 - `init` payloads are supported in YAML; set `initialized: true` to send the notification after `initialize`.
-- For `http`, provide `url`, optional `headers`, and optional `timeout` (seconds).
+- Provide `url`, optional `headers`, and optional `timeout` (seconds).
 
 ## Compare against a real MCP server
 
-Provide a real MCP server command and compare naive vs router selection:
+Provide a real MCP HTTP server and compare naive vs router selection:
 
 ```bash
-MCP_SERVER_CMD="your-mcp-server --stdio" python examples/compare_mcp.py "summarize the latest report"
+MCP_SERVER_URL="https://mcp.example.com/jsonrpc" python examples/compare_mcp.py "summarize the latest report"
 ```
 
 If your MCP server requires initialization, pass the JSON payload and (optionally) the initialized notification:
 
 ```bash
 MCP_INIT='{"protocolVersion":"...","capabilities":{}}' MCP_INITIALIZED=1 \
-  MCP_SERVER_CMD="your-mcp-server --stdio" python examples/compare_mcp.py "summarize the latest report"
+  MCP_SERVER_URL="https://mcp.example.com/jsonrpc" python examples/compare_mcp.py "summarize the latest report"
 ```
 
 ## Sequence diagram

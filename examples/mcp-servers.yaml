@@ -1,19 +1,4 @@
 servers:
-  - id: slack
-    cmd: "npx @modelcontextprotocol/server-slack --stdio"
-    enabled: false
-    tags: ["slack", "messaging"]
-
-  - id: filesystem
-    cmd: "npx @modelcontextprotocol/server-filesystem --stdio"
-    enabled: false
-    tags: ["files", "local"]
-
-  - id: github
-    cmd: "npx @modelcontextprotocol/server-github --stdio"
-    enabled: false
-    tags: ["github", "repo"]
-
   - id: remote-mcp
     transport: http
     url: "https://mcp.example.com/jsonrpc"

@@ -10,14 +10,13 @@ import yaml
 @dataclass
 class ServerSpec:
   id: str
-  cmd: str | None = None
   url: str | None = None
   enabled: bool = True
   init: dict | None = None
   send_initialized: bool = False
   tags: list[str] = field(default_factory=list)
   metadata: dict[str, Any] = field(default_factory=dict)
-  transport: str = "stdio"
+  transport: str = "http"
   headers: dict[str, str] = field(default_factory=dict)
   timeout: float | None = None
 
@@ -61,16 +60,13 @@ def _parse_registry_payload(payload: Any) -> list[ServerSpec]:
     if not isinstance(entry, dict):
       raise ValueError("Each server entry must be a mapping.")
     server_id = _string_value(entry, ["id", "serverId", "server_id"])
-    cmd = _string_value(entry, ["cmd", "command"])
     url = _string_value(entry, ["url", "endpoint"])
     if not server_id:
       raise ValueError("Each server entry requires 'id'.")
-    transport = str(entry.get("transport") or "stdio")
-    if transport not in {"stdio", "http"}:
-      raise ValueError(f"Unsupported transport '{transport}' for server '{server_id}'.")
-    if transport == "stdio" and not cmd:
-      raise ValueError(f"Server '{server_id}' requires 'cmd' for stdio transport.")
-    if transport == "http" and not url:
+    transport = str(entry.get("transport") or "http")
+    if transport != "http":
+      raise ValueError(f"Unsupported transport '{transport}' for server '{server_id}'. HTTP only.")
+    if not url:
       raise ValueError(f"Server '{server_id}' requires 'url' for http transport.")
     init_payload = _expand_env(entry.get("init"))
     send_initialized = bool(
@@ -91,8 +87,6 @@ def _parse_registry_payload(payload: Any) -> list[ServerSpec]:
         "id",
         "serverId",
         "server_id",
-        "cmd",
-        "command",
         "url",
         "endpoint",
         "init",
@@ -109,7 +103,6 @@ def _parse_registry_payload(payload: Any) -> list[ServerSpec]:
     servers.append(
       ServerSpec(
         id=server_id,
-        cmd=os.path.expandvars(cmd) if cmd else None,
         url=os.path.expandvars(url) if url else None,
         enabled=enabled,
         init=init_payload if isinstance(init_payload, dict) else None,

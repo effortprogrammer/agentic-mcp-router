@@ -1,9 +1,9 @@
 # Examples
 
-## Quickstart (Python + stdio daemon)
+## Quickstart (Python + router daemon)
 
-Run a minimal end-to-end flow (sync -> select -> reduce) using a mock MCP
-client and the stdio JSON-RPC daemon.
+Run a minimal end-to-end flow (sync -> select -> reduce) using a real MCP
+HTTP server and the router JSON-RPC daemon.
 
 From the repo root:
 
@@ -12,7 +12,6 @@ python examples/quickstart.py
 ```
 
 Notes:
-- The script starts the daemon via `npx tsx packages/daemon/src/cli.ts` by
-  default. Override with `ROUTERD` if you have a built binary, e.g.
-  `ROUTERD="tool-routerd"`.
-- If `npx` needs to download `tsx` the first run may take a moment.
+- The script expects `MCP_SERVER_URL` to be set (HTTP MCP server endpoint).
+- The script starts the daemon via `node packages/daemon/dist/cli.js` by
+  default. Override with `ROUTERD` if needed.

@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 from .mcp_http import HttpMcpClient
-from .mcp_stdio import StdioMcpClient
 from .registry import ServerRegistry, ServerSpec
 from .router import ToolRouter
 
@@ -87,26 +86,17 @@ class ToolRouterHub:
     client = self._clients.get(server.id)
     if client is not None:
       return client
-    if server.transport == "stdio":
-      if not server.cmd:
-        raise ValueError(f"Server '{server.id}' is missing cmd.")
-      client = StdioMcpClient(
-        server.cmd,
-        init_payload=server.init,
-        send_initialized=server.send_initialized,
-      )
-    elif server.transport == "http":
-      if not server.url:
-        raise ValueError(f"Server '{server.id}' is missing url.")
-      client = HttpMcpClient(
-        server.url,
-        headers=server.headers,
-        timeout=server.timeout,
-        init_payload=server.init,
-        send_initialized=server.send_initialized,
-      )
-    else:
-      raise ValueError(f"Unsupported transport '{server.transport}' for server '{server.id}'.")
+    if server.transport != "http":
+      raise ValueError(f"Unsupported transport '{server.transport}' for server '{server.id}'. HTTP only.")
+    if not server.url:
+      raise ValueError(f"Server '{server.id}' is missing url.")
+    client = HttpMcpClient(
+      server.url,
+      headers=server.headers,
+      timeout=server.timeout,
+      init_payload=server.init,
+      send_initialized=server.send_initialized,
+    )
     self._clients[server.id] = client
     return client
 
