@@ -38,8 +38,30 @@ so lexical search remains effective.
 
 ## Quickstart
 
+First, install Node dependencies and build the TypeScript packages:
+
+```bash
+npm install
+npm run build
+```
+
+Then run the Python example (requires a real MCP server):
+
 ```bash
 python examples/quickstart.py
+```
+
+For stdio servers:
+
+```bash
+MCP_SERVER_CMD="your-mcp-server --stdio" python examples/quickstart.py
+```
+
+For HTTP servers:
+
+```bash
+MCP_TRANSPORT=http MCP_SERVER_URL="https://mcp.example.com/jsonrpc" \
+  python examples/quickstart.py
 ```
 
 Set `ROUTERD` to override the daemon command, for example:

@@ -10,89 +10,61 @@ PYTHON_SRC = ROOT / "python"
 if str(PYTHON_SRC) not in sys.path:
   sys.path.insert(0, str(PYTHON_SRC))
 
-from mcp_tool_router import ToolRouter  # noqa: E402
-
-
-class MockMcpClient:
-  def tools_list(self) -> dict:
-    return {
-      "tools": [
-        {
-          "name": "weather.get_forecast",
-          "description": "Get a short weather forecast for a city.",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "city": {"type": "string", "description": "City name"},
-              "days": {"type": "integer", "description": "Number of days"}
-            },
-            "required": ["city"]
-          },
-          "annotations": {"readOnlyHint": True, "tags": ["weather", "forecast"]}
-        },
-        {
-          "name": "calendar.create_event",
-          "description": "Create a calendar event.",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "title": {"type": "string", "description": "Event title"},
-              "start": {"type": "string", "description": "Start time (ISO8601)"},
-              "end": {"type": "string", "description": "End time (ISO8601)"}
-            },
-            "required": ["title", "start"]
-          },
-          "annotations": {"destructiveHint": True, "tags": ["calendar"]}
-        },
-        {
-          "name": "web.search",
-          "description": "Search the web.",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "query": {"type": "string", "description": "Search query"},
-              "top_k": {"type": "integer", "description": "Number of results"}
-            },
-            "required": ["query"]
-          },
-          "annotations": {"openWorldHint": True, "tags": ["search", "web"]}
-        }
-      ]
-    }
+from mcp_tool_router import HttpMcpClient, StdioMcpClient, ToolRouter  # noqa: E402
 
 
 def main() -> int:
-  routerd_cmd = os.environ.get("ROUTERD", "npx tsx packages/daemon/src/cli.ts")
+  routerd_cmd = os.environ.get("ROUTERD", "node packages/daemon/dist/cli.js")
+  server_id = os.environ.get("MCP_SERVER_ID", "mcp")
+  transport = os.environ.get("MCP_TRANSPORT", "stdio").lower()
+  init_payload = None
+  init_raw = os.environ.get("MCP_INIT")
+  if init_raw:
+    init_payload = json.loads(init_raw)
+  send_initialized = os.environ.get("MCP_INITIALIZED", "").lower() in {"1", "true", "yes"}
+
+  if transport == "http":
+    server_url = os.environ.get("MCP_SERVER_URL")
+    if not server_url:
+      print("Set MCP_SERVER_URL for http transport.")
+      return 1
+    headers = {}
+    headers_raw = os.environ.get("MCP_HEADERS")
+    if headers_raw:
+      headers = json.loads(headers_raw)
+    timeout = os.environ.get("MCP_TIMEOUT")
+    client = HttpMcpClient(
+      server_url,
+      headers=headers,
+      timeout=float(timeout) if timeout else None,
+      init_payload=init_payload,
+      send_initialized=send_initialized,
+    )
+  else:
+    server_cmd = os.environ.get("MCP_SERVER_CMD")
+    if not server_cmd:
+      print("Set MCP_SERVER_CMD for stdio transport.")
+      return 1
+    client = StdioMcpClient(
+      server_cmd,
+      init_payload=init_payload,
+      send_initialized=send_initialized,
+    )
+
   router = ToolRouter(routerd_path=routerd_cmd)
 
   try:
-    client = MockMcpClient()
-    router.sync_from_mcp("mock", client)
+    router.sync_from_mcp(server_id, client)
 
     session_id = "demo-session"
-    selected = router.select_tools(session_id, "weather in seoul", top_k=5, budget_tokens=800)
+    query = os.environ.get("QUERY", "summarize the latest report")
+    selected = router.select_tools(session_id, query, top_k=5, budget_tokens=800)
     print("Selected tools:", selected)
 
     if selected:
       router.mark_tool_used(session_id, selected[0])
-
-    raw_result = {
-      "content": [
-        {"type": "text", "text": "Forecast for Seoul: Clear, 6C. Next day: Cloudy, 4C."}
-      ],
-      "structuredContent": {
-        "city": "Seoul",
-        "days": [
-          {"day": "Tue", "summary": "Clear", "tempC": 6},
-          {"day": "Wed", "summary": "Cloudy", "tempC": 4}
-        ]
-      }
-    }
-
-    reduced = router.reduce_result(selected[0] if selected else None, raw_result)
-    print("Reduced result:")
-    print(json.dumps(reduced, indent=2))
   finally:
+    client.close()
     router.close()
 
   return 0

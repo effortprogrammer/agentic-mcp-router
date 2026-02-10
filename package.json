@@ -3,6 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "license": "MIT",
+  "scripts": {
+    "build": "tsc -p packages/shared/tsconfig.json && tsc -p packages/core/tsconfig.json && tsc -p packages/daemon/tsconfig.json && tsc -p packages/cli/tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  },
   "engines": {
     "node": ">=20"
   },

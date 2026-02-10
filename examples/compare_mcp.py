@@ -49,7 +49,7 @@ def main() -> int:
     return 1
 
   server_id = os.environ.get("MCP_SERVER_ID", "mcp")
-  routerd_cmd = os.environ.get("ROUTERD", "npx tsx packages/daemon/src/cli.ts")
+  routerd_cmd = os.environ.get("ROUTERD", "node packages/daemon/dist/cli.js")
   query = " ".join(sys.argv[1:]).strip() or os.environ.get("QUERY", "help me with this task")
 
   init_payload = None

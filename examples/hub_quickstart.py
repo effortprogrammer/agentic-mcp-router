@@ -14,7 +14,7 @@ from mcp_tool_router import ToolRouterHub  # noqa: E402
 
 def main() -> int:
   config_path = os.environ.get("MCP_SERVERS_YAML", "examples/mcp-servers.yaml")
-  routerd_cmd = os.environ.get("ROUTERD")
+  routerd_cmd = os.environ.get("ROUTERD", "node packages/daemon/dist/cli.js")
 
   hub = ToolRouterHub.from_yaml(config_path, routerd_path=routerd_cmd)
 
