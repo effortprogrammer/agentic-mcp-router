@@ -1,4 +1,4 @@
-import type { CatalogStats, CatalogStore } from "./core";
+import type { CatalogStats, CatalogStore } from "./core.js";
 import type { ToolCard, ToolSearchDoc } from "@mcp-tool-router/shared";
 
 export interface CatalogSnapshot {

@@ -1,6 +1,6 @@
-import type { ResultReducer } from "./core";
+import type { ResultReducer } from "./core.js";
 import type { ReducedToolResult } from "@mcp-tool-router/shared";
-import { byteLength, stableStringify, truncateByBytes } from "./utils";
+import { byteLength, stableStringify, truncateByBytes } from "./utils.js";
 
 export interface ResultReducerOptions {
   maxTextBytes?: number;

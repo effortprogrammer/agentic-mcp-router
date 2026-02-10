@@ -1,9 +1,9 @@
-import type { WorkingSetManager } from "./core";
-import type { SearchEngine } from "./core";
+import type { WorkingSetManager } from "./core.js";
+import type { SearchEngine } from "./core.js";
 import type { WorkingSetState, WorkingSetUpdateInput, WorkingSetUpdateResult } from "@mcp-tool-router/shared";
 import type { ToolCard } from "@mcp-tool-router/shared";
-import type { InMemoryCatalog } from "./catalog";
-import { estimateTokensFromText } from "./utils";
+import type { InMemoryCatalog } from "./catalog.js";
+import { estimateTokensFromText } from "./utils.js";
 
 export interface WorkingSetOptions {
   defaultTtlMs?: number;

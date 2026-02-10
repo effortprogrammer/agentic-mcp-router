@@ -1,7 +1,7 @@
-import type { SearchEngine } from "./core";
-import type { CatalogSnapshot } from "./catalog";
-import type { Tokenizer } from "./tokenizer";
-import { normalizeForMatch } from "./tokenizer";
+import type { SearchEngine } from "./core.js";
+import type { CatalogSnapshot } from "./catalog.js";
+import type { Tokenizer } from "./tokenizer.js";
+import { normalizeForMatch } from "./tokenizer.js";
 import type {
   Bm25FieldWeights,
   SearchFilters,
