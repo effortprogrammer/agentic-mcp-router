@@ -48,6 +48,37 @@ Set `ROUTERD` to override the daemon command, for example:
 ROUTERD="tool-routerd" python examples/quickstart.py
 ```
 
+## MCP server registry + hub
+
+Register many MCP servers in a single YAML file, then sync/route/call through a hub.
+
+Example registry (`examples/mcp-servers.yaml`):
+
+```yaml
+servers:
+  - id: slack
+    cmd: "npx @modelcontextprotocol/server-slack --stdio"
+    enabled: true
+  - id: filesystem
+    cmd: "npx @modelcontextprotocol/server-filesystem --stdio"
+    enabled: true
+```
+
+Usage:
+
+```python
+from mcp_tool_router import ToolRouterHub
+
+hub = ToolRouterHub.from_yaml("examples/mcp-servers.yaml")
+hub.sync_all()
+tool_ids = hub.select_tools("session-1", "summarize the latest report")
+result = hub.call_tool(tool_ids[0], {"query": "latest report"})
+```
+
+Notes:
+- Only `stdio` transport is supported right now.
+- `init` payloads are supported in YAML; set `initialized: true` to send the notification after `initialize`.
+
 ## Compare against a real MCP server
 
 Provide a real MCP server command and compare naive vs router selection:
