@@ -48,6 +48,21 @@ Set `ROUTERD` to override the daemon command, for example:
 ROUTERD="tool-routerd" python examples/quickstart.py
 ```
 
+## Compare against a real MCP server
+
+Provide a real MCP server command and compare naive vs router selection:
+
+```bash
+MCP_SERVER_CMD="your-mcp-server --stdio" python examples/compare_mcp.py "summarize the latest report"
+```
+
+If your MCP server requires initialization, pass the JSON payload and (optionally) the initialized notification:
+
+```bash
+MCP_INIT='{"protocolVersion":"...","capabilities":{}}' MCP_INITIALIZED=1 \
+  MCP_SERVER_CMD="your-mcp-server --stdio" python examples/compare_mcp.py "summarize the latest report"
+```
+
 ## Sequence diagram
 
 ```mermaid
