@@ -1,0 +1,32 @@
+node_modules/
+.DS_Store
+*.log
+npm-debug.log*
+.yarn/
+.pnpm-store/
+
+# Build
+/dist/
+/build/
+/out/
+
+# TypeScript
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.venv*/
+
+# IDE
+.vscode/
+.idea/
+
+# Coverage
+coverage/
+
+# Env
+.env
+.env.*
+docs/
