@@ -42,11 +42,11 @@ ROUTERD="tool-routerd" python examples/quickstart.py
 sequenceDiagram
     participant User
     participant Py as Python ToolRouter
-    participant D as tool-routerd (JSON-RPC stdio)
-    participant Core as TS Core (catalog/search/ws/reducer)
+    participant D as tool_routerd
+    participant Core as ts_core
 
-    User->>Py: ToolRouter(...)
-    Py->>D: (spawn on first RPC)
+    User->>Py: ToolRouter init
+    Py->>D: spawn on first RPC (JSON-RPC stdio)
     User->>Py: sync_from_mcp(server, mcp_client)
     Py->>Py: mcp_client.tools_list()
     Py->>D: catalog.upsertTools(ToolCard[])
@@ -58,7 +58,7 @@ sequenceDiagram
     D-->>Py: selectedToolIds
 
     User->>Py: reduce_result(toolId, rawResult)
-    Py->>D: result.reduce(...)
+    Py->>D: result.reduce(rawResult)
     D->>Core: normalize + structured-first + truncate
     D-->>Py: ReducedToolResult
 ```
