@@ -62,6 +62,12 @@ servers:
   - id: filesystem
     cmd: "npx @modelcontextprotocol/server-filesystem --stdio"
     enabled: true
+  - id: remote-mcp
+    transport: http
+    url: "https://mcp.example.com/jsonrpc"
+    headers:
+      Authorization: "Bearer ${MCP_TOKEN}"
+    enabled: true
 ```
 
 Usage:
@@ -76,8 +82,9 @@ result = hub.call_tool(tool_ids[0], {"query": "latest report"})
 ```
 
 Notes:
-- Only `stdio` transport is supported right now.
+- `stdio` and `http` transports are supported.
 - `init` payloads are supported in YAML; set `initialized: true` to send the notification after `initialize`.
+- For `http`, provide `url`, optional `headers`, and optional `timeout` (seconds).
 
 ## Compare against a real MCP server
 

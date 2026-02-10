@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
+from .mcp_http import HttpMcpClient
 from .mcp_stdio import StdioMcpClient
 from .registry import ServerRegistry, ServerSpec
 from .router import ToolRouter
@@ -12,7 +13,7 @@ class ToolRouterHub:
     self._registry = registry
     self._router = router
     self._auto_sync = auto_sync
-    self._clients: dict[str, StdioMcpClient] = {}
+    self._clients: dict[str, object] = {}
     self._synced: set[str] = set()
 
   @classmethod
@@ -82,17 +83,30 @@ class ToolRouterHub:
       raise KeyError(f"Unknown server '{server_id}'.")
     return server
 
-  def _ensure_client(self, server: ServerSpec) -> StdioMcpClient:
+  def _ensure_client(self, server: ServerSpec) -> object:
     client = self._clients.get(server.id)
     if client is not None:
       return client
-    if server.transport != "stdio":
+    if server.transport == "stdio":
+      if not server.cmd:
+        raise ValueError(f"Server '{server.id}' is missing cmd.")
+      client = StdioMcpClient(
+        server.cmd,
+        init_payload=server.init,
+        send_initialized=server.send_initialized,
+      )
+    elif server.transport == "http":
+      if not server.url:
+        raise ValueError(f"Server '{server.id}' is missing url.")
+      client = HttpMcpClient(
+        server.url,
+        headers=server.headers,
+        timeout=server.timeout,
+        init_payload=server.init,
+        send_initialized=server.send_initialized,
+      )
+    else:
       raise ValueError(f"Unsupported transport '{server.transport}' for server '{server.id}'.")
-    client = StdioMcpClient(
-      server.cmd,
-      init_payload=server.init,
-      send_initialized=server.send_initialized,
-    )
     self._clients[server.id] = client
     return client
 

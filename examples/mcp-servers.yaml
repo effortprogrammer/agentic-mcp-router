@@ -13,3 +13,11 @@ servers:
     cmd: "npx @modelcontextprotocol/server-github --stdio"
     enabled: false
     tags: ["github", "repo"]
+
+  - id: remote-mcp
+    transport: http
+    url: "https://mcp.example.com/jsonrpc"
+    enabled: false
+    headers:
+      Authorization: "Bearer ${MCP_TOKEN}"
+    tags: ["remote"]
