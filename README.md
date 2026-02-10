@@ -23,6 +23,18 @@ BM25 search, working-set management, and deterministic result reduction.
 - **Router daemon**: `tool-routerd` JSON-RPC over stdio (optional HTTP)
 - **Python wrapper**: MCP sync, LLM orchestration, daemon lifecycle
 
+
+## Quickstart
+
+```bash
+python examples/quickstart.py
+```
+
+Set `ROUTERD` to override the daemon command, for example:
+
+```bash
+ROUTERD="tool-routerd" python examples/quickstart.py
+```
 ## Repository layout
 
 ```
@@ -35,7 +47,6 @@ python/
   mcp_tool_router/  # Python client wrapper
   pyproject.toml
 examples/
-docs/
 ```
 
 
