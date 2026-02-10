@@ -1,0 +1,24 @@
+{
+  "model": "claude-3-7-sonnet-latest",
+  "max_tokens": 512,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Search for the latest status update."
+    }
+  ],
+  "mcp_servers": [
+    {
+      "type": "url",
+      "name": "example-mcp",
+      "url": "https://mcp.example.com/sse",
+      "authorization_token": "REPLACE_WITH_TOKEN"
+    }
+  ],
+  "tools": [
+    {
+      "type": "mcp_toolset",
+      "mcp_server_name": "example-mcp"
+    }
+  ]
+}
