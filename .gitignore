@@ -9,6 +9,7 @@ npm-debug.log*
 /dist/
 /build/
 /out/
+/packages/**/dist/
 
 # TypeScript
 *.tsbuildinfo
