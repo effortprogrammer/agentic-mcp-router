@@ -10,7 +10,7 @@ PYTHON_SRC = ROOT / "python"
 if str(PYTHON_SRC) not in sys.path:
   sys.path.insert(0, str(PYTHON_SRC))
 
-from mcp_tool_router import HttpMcpClient, ToolRouter  # noqa: E402
+from mcp_tool_router import StdioMcpClient, ToolRouter  # noqa: E402
 
 
 def main() -> int:
@@ -22,19 +22,12 @@ def main() -> int:
     init_payload = json.loads(init_raw)
   send_initialized = os.environ.get("MCP_INITIALIZED", "").lower() in {"1", "true", "yes"}
 
-  server_url = os.environ.get("MCP_SERVER_URL")
-  if not server_url:
-    print("Set MCP_SERVER_URL for http transport.")
+  server_cmd = os.environ.get("MCP_SERVER_CMD")
+  if not server_cmd:
+    print("Set MCP_SERVER_CMD for stdio transport.")
     return 1
-  headers = {}
-  headers_raw = os.environ.get("MCP_HEADERS")
-  if headers_raw:
-    headers = json.loads(headers_raw)
-  timeout = os.environ.get("MCP_TIMEOUT")
-  client = HttpMcpClient(
-    server_url,
-    headers=headers,
-    timeout=float(timeout) if timeout else None,
+  client = StdioMcpClient(
+    server_cmd,
     init_payload=init_payload,
     send_initialized=send_initialized,
   )

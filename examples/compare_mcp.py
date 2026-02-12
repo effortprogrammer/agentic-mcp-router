@@ -10,7 +10,7 @@ PYTHON_SRC = ROOT / "python"
 if str(PYTHON_SRC) not in sys.path:
   sys.path.insert(0, str(PYTHON_SRC))
 
-from mcp_tool_router import HttpMcpClient, ToolRouter  # noqa: E402
+from mcp_tool_router import StdioMcpClient, ToolRouter  # noqa: E402
 from mcp_tool_router.router import _toolcard_from_mcp  # noqa: E402
 
 
@@ -42,10 +42,10 @@ def estimate_tool_tokens(tool: dict) -> int:
 
 
 def main() -> int:
-  server_url = os.environ.get("MCP_SERVER_URL")
-  if not server_url:
-    print("Set MCP_SERVER_URL to the MCP server endpoint.")
-    print("Example: MCP_SERVER_URL='https://mcp.example.com/jsonrpc' python examples/compare_mcp.py \"query\"")
+  server_cmd = os.environ.get("MCP_SERVER_CMD")
+  if not server_cmd:
+    print("Set MCP_SERVER_CMD to the MCP server command.")
+    print("Example: MCP_SERVER_CMD='npx @your/mcp-server --stdio' python examples/compare_mcp.py \"query\"")
     return 1
 
   server_id = os.environ.get("MCP_SERVER_ID", "mcp")
@@ -58,18 +58,7 @@ def main() -> int:
     init_payload = json.loads(init_raw)
   send_initialized = os.environ.get("MCP_INITIALIZED", "").lower() in {"1", "true", "yes"}
 
-  headers = {}
-  headers_raw = os.environ.get("MCP_HEADERS")
-  if headers_raw:
-    headers = json.loads(headers_raw)
-  timeout = os.environ.get("MCP_TIMEOUT")
-  client = HttpMcpClient(
-    server_url,
-    headers=headers,
-    timeout=float(timeout) if timeout else None,
-    init_payload=init_payload,
-    send_initialized=send_initialized,
-  )
+  client = StdioMcpClient(server_cmd, init_payload=init_payload, send_initialized=send_initialized)
   router = ToolRouter(routerd_path=routerd_cmd)
 
   try:

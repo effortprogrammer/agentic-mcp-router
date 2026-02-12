@@ -1,8 +1,10 @@
 servers:
-  - id: remote-mcp
-    transport: http
-    url: "https://mcp.example.com/jsonrpc"
+  - id: slack
+    cmd: "npx @modelcontextprotocol/server-slack --stdio"
     enabled: false
-    headers:
-      Authorization: "Bearer ${MCP_TOKEN}"
-    tags: ["remote"]
+    tags: ["slack", "messaging"]
+
+  - id: github
+    cmd: "npx @modelcontextprotocol/server-github --stdio"
+    enabled: false
+    tags: ["github", "repo"]
