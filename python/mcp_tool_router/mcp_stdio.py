@@ -14,16 +14,18 @@ class StdioMcpConfig:
   server_cmd: str
   init_payload: dict | None = None
   send_initialized: bool = False
+  env: dict[str, str] | None = None
 
 
 class _StdioJsonRpcClient:
-  def __init__(self, argv: list[str]) -> None:
+  def __init__(self, argv: list[str], env: dict[str, str] | None = None) -> None:
     self._proc = subprocess.Popen(
       argv,
       stdin=subprocess.PIPE,
       stdout=subprocess.PIPE,
       text=True,
       bufsize=1,
+      env=env,
     )
     self._lock = threading.Lock()
     self._pending: dict[int, queue.Queue[dict]] = {}
@@ -114,14 +116,21 @@ class _StdioJsonRpcClient:
 
 
 class StdioMcpClient:
-  def __init__(self, server_cmd: str, init_payload: dict | None = None, send_initialized: bool = False) -> None:
+  def __init__(
+    self,
+    server_cmd: str,
+    init_payload: dict | None = None,
+    send_initialized: bool = False,
+    env: dict[str, str] | None = None,
+  ) -> None:
     self._config = StdioMcpConfig(
       server_cmd=server_cmd,
       init_payload=init_payload,
       send_initialized=send_initialized,
+      env=env,
     )
     argv = shlex.split(server_cmd)
-    self._rpc = _StdioJsonRpcClient(argv)
+    self._rpc = _StdioJsonRpcClient(argv, env=env)
     if init_payload is not None:
       self._rpc.request("initialize", init_payload)
       if send_initialized:

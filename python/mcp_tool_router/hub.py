@@ -21,6 +21,17 @@ class ToolRouterHub:
     router = ToolRouter(routerd_path=routerd_path)
     return cls(registry, router, auto_sync=auto_sync)
 
+  @classmethod
+  def from_opencode_config(
+    cls,
+    path: str,
+    routerd_path: str | None = None,
+    auto_sync: bool = True,
+  ) -> "ToolRouterHub":
+    registry = ServerRegistry.from_opencode_config(path)
+    router = ToolRouter(routerd_path=routerd_path)
+    return cls(registry, router, auto_sync=auto_sync)
+
   @property
   def registry(self) -> ServerRegistry:
     return self._registry
@@ -94,6 +105,7 @@ class ToolRouterHub:
       server.cmd,
       init_payload=server.init,
       send_initialized=server.send_initialized,
+      env=server.env,
     )
     self._clients[server.id] = client
     return client

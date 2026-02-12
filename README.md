@@ -92,6 +92,18 @@ Notes:
 - Only `stdio` transport is supported for MCP servers.
 - `init` payloads are supported in YAML; set `initialized: true` to send the notification after `initialize`.
 
+### Use OpenCode config as registry
+
+If you already manage MCP servers in OpenCode, you can load them directly:
+
+```python
+from mcp_tool_router import ToolRouterHub
+
+hub = ToolRouterHub.from_opencode_config("~/.config/opencode/opencode.json")
+hub.sync_all()
+tool_ids = hub.select_tools("session-1", "summarize the latest report")
+```
+
 ## Compare against a real MCP server
 
 Provide a real MCP stdio server and compare naive vs router selection:

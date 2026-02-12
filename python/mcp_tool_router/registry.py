@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 import os
+import shlex
 from typing import Any, Iterable
 
 import yaml
@@ -14,6 +16,7 @@ class ServerSpec:
   enabled: bool = True
   init: dict | None = None
   send_initialized: bool = False
+  env: dict[str, str] = field(default_factory=dict)
   tags: list[str] = field(default_factory=list)
   metadata: dict[str, Any] = field(default_factory=dict)
   transport: str = "stdio"
@@ -25,9 +28,18 @@ class ServerRegistry:
 
   @classmethod
   def from_yaml(cls, path: str) -> "ServerRegistry":
-    with open(path, "r", encoding="utf-8") as handle:
+    expanded = os.path.expanduser(path)
+    with open(expanded, "r", encoding="utf-8") as handle:
       payload = yaml.safe_load(handle)
     servers = _parse_registry_payload(payload)
+    return cls(servers)
+
+  @classmethod
+  def from_opencode_config(cls, path: str) -> "ServerRegistry":
+    expanded = os.path.expanduser(path)
+    with open(expanded, "r", encoding="utf-8") as handle:
+      payload = json.load(handle)
+    servers = _parse_opencode_payload(payload)
     return cls(servers)
 
   def list(self) -> list[ServerSpec]:
@@ -75,6 +87,7 @@ def _parse_registry_payload(payload: Any) -> list[ServerSpec]:
     )
     enabled = bool(entry.get("enabled", True))
     tags = _string_list(entry.get("tags"))
+    env = _string_dict(_expand_env(entry.get("env")))
     metadata = {
       key: value
       for key, value in entry.items()
@@ -89,6 +102,7 @@ def _parse_registry_payload(payload: Any) -> list[ServerSpec]:
         "send_initialized",
         "sendInitialized",
         "initialized",
+        "env",
         "enabled",
         "tags",
         "transport",
@@ -101,9 +115,51 @@ def _parse_registry_payload(payload: Any) -> list[ServerSpec]:
         enabled=enabled,
         init=init_payload if isinstance(init_payload, dict) else None,
         send_initialized=send_initialized,
+        env=env,
         tags=tags,
         metadata=metadata,
         transport=transport,
+      )
+    )
+  return servers
+
+
+def _parse_opencode_payload(payload: Any) -> list[ServerSpec]:
+  if not isinstance(payload, dict):
+    return []
+  mcp = payload.get("mcp") or payload.get("mcpServers") or {}
+  if not isinstance(mcp, dict):
+    return []
+  servers: list[ServerSpec] = []
+  for server_id, entry in mcp.items():
+    if not isinstance(entry, dict):
+      continue
+    enabled = bool(entry.get("enabled", True))
+    server_type = str(entry.get("type") or "local")
+    if server_type != "local":
+      continue
+    cmd = _command_from_opencode(entry)
+    if not cmd:
+      continue
+    init_payload = _expand_env(entry.get("init"))
+    send_initialized = bool(
+      entry.get("send_initialized")
+      or entry.get("sendInitialized")
+      or entry.get("initialized")
+      or False
+    )
+    env = _string_dict(_expand_env(entry.get("env")))
+    servers.append(
+      ServerSpec(
+        id=str(server_id),
+        cmd=cmd,
+        enabled=enabled,
+        init=init_payload if isinstance(init_payload, dict) else None,
+        send_initialized=send_initialized,
+        env=env,
+        tags=[],
+        metadata={},
+        transport="stdio",
       )
     )
   return servers
@@ -127,6 +183,14 @@ def _string_list(value: Any) -> list[str]:
   return [str(value)]
 
 
+def _string_dict(value: Any) -> dict[str, str]:
+  if value is None:
+    return {}
+  if isinstance(value, dict):
+    return {str(key): str(item) for key, item in value.items()}
+  return {}
+
+
 def _expand_env(value: Any) -> Any:
   if isinstance(value, str):
     return os.path.expandvars(value)
@@ -135,3 +199,18 @@ def _expand_env(value: Any) -> Any:
   if isinstance(value, dict):
     return {key: _expand_env(item) for key, item in value.items()}
   return value
+
+
+def _command_from_opencode(entry: dict[str, Any]) -> str | None:
+  command = entry.get("command")
+  args = entry.get("args")
+  parts: list[str] = []
+  if isinstance(command, list):
+    parts.extend(str(item) for item in command if item)
+  elif isinstance(command, str) and command.strip():
+    parts.append(command.strip())
+  if isinstance(args, list):
+    parts.extend(str(item) for item in args if item)
+  if not parts:
+    return None
+  return " ".join(shlex.quote(part) for part in parts)

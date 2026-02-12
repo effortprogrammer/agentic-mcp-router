@@ -15,3 +15,11 @@ Notes:
 - The script expects `MCP_SERVER_CMD` to be set (stdio MCP server command).
 - The script starts the daemon via `node packages/daemon/dist/cli.js` by
   default. Override with `ROUTERD` if needed.
+
+## Quickstart (OpenCode config)
+
+If you already manage MCP servers in OpenCode, you can reuse that config:
+
+```bash
+OPENCODE_CONFIG="~/.config/opencode/opencode.json" python examples/opencode_quickstart.py
+```
