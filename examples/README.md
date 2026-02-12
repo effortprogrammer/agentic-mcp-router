@@ -23,3 +23,15 @@ If you already manage MCP servers in OpenCode, you can reuse that config:
 ```bash
 OPENCODE_CONFIG="~/.config/opencode/opencode.json" python examples/opencode_quickstart.py
 ```
+
+## Router MCP server (OpenCode)
+
+If OpenCode should connect to a single MCP server (the router), run:
+
+```bash
+OPENCODE_CONFIG="~/.config/opencode/opencode.json" \
+  python -m mcp_tool_router.router_mcp_server
+```
+
+Then register only the router MCP entry in OpenCode, and keep your real MCP
+servers disabled so the router can read them directly.

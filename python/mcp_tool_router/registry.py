@@ -35,11 +35,20 @@ class ServerRegistry:
     return cls(servers)
 
   @classmethod
-  def from_opencode_config(cls, path: str) -> "ServerRegistry":
+  def from_opencode_config(
+    cls,
+    path: str,
+    include_disabled: bool = False,
+    ignore_ids: Iterable[str] | None = None,
+  ) -> "ServerRegistry":
     expanded = os.path.expanduser(path)
     with open(expanded, "r", encoding="utf-8") as handle:
       payload = json.load(handle)
-    servers = _parse_opencode_payload(payload)
+    servers = _parse_opencode_payload(
+      payload,
+      include_disabled=include_disabled,
+      ignore_ids=set(ignore_ids or []),
+    )
     return cls(servers)
 
   def list(self) -> list[ServerSpec]:
@@ -124,7 +133,11 @@ def _parse_registry_payload(payload: Any) -> list[ServerSpec]:
   return servers
 
 
-def _parse_opencode_payload(payload: Any) -> list[ServerSpec]:
+def _parse_opencode_payload(
+  payload: Any,
+  include_disabled: bool,
+  ignore_ids: set[str],
+) -> list[ServerSpec]:
   if not isinstance(payload, dict):
     return []
   mcp = payload.get("mcp") or payload.get("mcpServers") or {}
@@ -134,7 +147,11 @@ def _parse_opencode_payload(payload: Any) -> list[ServerSpec]:
   for server_id, entry in mcp.items():
     if not isinstance(entry, dict):
       continue
+    if str(server_id) in ignore_ids:
+      continue
     enabled = bool(entry.get("enabled", True))
+    if not include_disabled and not enabled:
+      continue
     server_type = str(entry.get("type") or "local")
     if server_type != "local":
       continue

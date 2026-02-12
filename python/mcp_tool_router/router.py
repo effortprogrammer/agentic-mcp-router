@@ -106,6 +106,8 @@ class ToolRouter:
   def __init__(self, routerd_path: str | None = None, transport: str = "stdio") -> None:
     self._config = RouterConfig(routerd_path=routerd_path, transport=transport)
     self._client: _StdioJsonRpcClient | None = None
+    self._raw_tool_cache: dict[str, dict[str, Any]] = {}
+    self._tool_cache: dict[str, dict[str, Any]] = {}
 
   def _rpc(self) -> _StdioJsonRpcClient:
     if self._config.transport != "stdio":
@@ -133,11 +135,32 @@ class ToolRouter:
       tools = tools.get("tools", [])
     tool_cards: list[dict[str, Any]] = []
     for tool in tools or []:
+      if not isinstance(tool, dict):
+        continue
       card = _toolcard_from_mcp(server_id, tool)
-      if card:
-        tool_cards.append(card)
+      if not card:
+        continue
+      tool_id = card["toolId"]
+      raw_tool = dict(tool)
+      if "name" not in raw_tool:
+        raw_tool["name"] = card["toolName"]
+      self._raw_tool_cache[tool_id] = raw_tool
+      self._tool_cache[tool_id] = card
+      tool_cards.append(card)
     tool_cards.sort(key=lambda item: item["toolId"])
     self._rpc().request("catalog.upsertTools", {"tools": tool_cards})
+
+  def get_tool_card(self, tool_id: str) -> dict[str, Any] | None:
+    return self._tool_cache.get(tool_id)
+
+  def get_tool_cards(self, tool_ids: Iterable[str]) -> list[dict[str, Any]]:
+    return [self._tool_cache[tool_id] for tool_id in tool_ids if tool_id in self._tool_cache]
+
+  def get_raw_tool(self, tool_id: str) -> dict[str, Any] | None:
+    return self._raw_tool_cache.get(tool_id)
+
+  def get_raw_tools(self, tool_ids: Iterable[str]) -> list[dict[str, Any]]:
+    return [self._raw_tool_cache[tool_id] for tool_id in tool_ids if tool_id in self._raw_tool_cache]
 
   def select_tools(
     self,

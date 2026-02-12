@@ -27,14 +27,24 @@ class ToolRouterHub:
     path: str,
     routerd_path: str | None = None,
     auto_sync: bool = True,
+    include_disabled: bool = False,
+    ignore_ids: Iterable[str] | None = None,
   ) -> "ToolRouterHub":
-    registry = ServerRegistry.from_opencode_config(path)
+    registry = ServerRegistry.from_opencode_config(
+      path,
+      include_disabled=include_disabled,
+      ignore_ids=ignore_ids,
+    )
     router = ToolRouter(routerd_path=routerd_path)
     return cls(registry, router, auto_sync=auto_sync)
 
   @property
   def registry(self) -> ServerRegistry:
     return self._registry
+
+  @property
+  def router(self) -> ToolRouter:
+    return self._router
 
   def list_servers(self) -> list[ServerSpec]:
     return self._registry.list()

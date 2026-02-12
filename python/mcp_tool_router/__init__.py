@@ -2,6 +2,7 @@ from .hub import ToolRouterHub
 from .mcp_stdio import StdioMcpClient
 from .registry import ServerRegistry, ServerSpec
 from .router import ToolRouter
+from .router_mcp_server import RouterMcpServer
 
 __all__ = [
   "ToolRouter",
@@ -9,4 +10,5 @@ __all__ = [
   "ServerRegistry",
   "ServerSpec",
   "StdioMcpClient",
+  "RouterMcpServer",
 ]

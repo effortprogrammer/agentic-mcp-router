@@ -104,6 +104,52 @@ hub.sync_all()
 tool_ids = hub.select_tools("session-1", "summarize the latest report")
 ```
 
+## Run the router as an MCP server (OpenCode)
+
+If you want OpenCode to connect to a single MCP server (the router) while still
+using your existing MCP servers, run the router MCP server and let it read the
+OpenCode config directly.
+
+Recommended flow:
+
+1. Keep your existing MCP servers in `~/.config/opencode/opencode.json`, but set
+   them to `enabled: false` so OpenCode does not connect to them directly.
+2. Add one MCP entry for the router that launches this repo.
+
+Example OpenCode config snippet:
+
+```json
+{
+  "mcp": {
+    "router": {
+      "type": "local",
+      "enabled": true,
+      "command": ["python3", "-m", "mcp_tool_router.router_mcp_server"]
+    },
+    "slack": {
+      "type": "local",
+      "enabled": false,
+      "command": ["node", "/path/to/slack-mcp/server.js"]
+    }
+  }
+}
+```
+
+The router MCP server exposes two tools:
+
+- `router_select_tools`: select relevant tool IDs for a query (returns tool defs)
+- `router_call_tool`: call a tool by `{serverId}:{toolName}`
+
+Environment variables:
+
+- `OPENCODE_CONFIG`: path to OpenCode config (default: `~/.config/opencode/opencode.json`)
+- `ROUTERD`: override the router daemon command
+- `ROUTER_IGNORE_IDS`: comma-separated MCP server IDs to ignore
+- `ROUTER_INCLUDE_DISABLED`: set to `false` to skip disabled entries
+
+This keeps the MCP tool list tiny inside OpenCode while the router dynamically
+selects tools and proxies calls to the underlying servers.
+
 ## Compare against a real MCP server
 
 Provide a real MCP stdio server and compare naive vs router selection:
