@@ -8,7 +8,18 @@ export interface TokenizerOptions {
   minTokenLength?: number;
 }
 
-const DEFAULT_MIN_TOKEN_LENGTH = 1;
+const DEFAULT_MIN_TOKEN_LENGTH = 2;
+
+const DEFAULT_STOPWORDS = [
+  "a", "an", "the", "in", "on", "at", "to", "for", "of", "with", "by", "from", "as", "into", "through", "during", "before", "after", "above", "below", "between", "under",
+  "and", "or", "but", "so", "yet", "nor", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them", "my", "your", "his", "its", "our", "their",
+  "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "can", "shall",
+  "get", "use", "make", "take", "go", "come", "see", "know", "look", "find", "give", "tell", "ask", "work", "seem", "feel", "try", "leave", "call",
+  "any", "all", "some", "many", "much", "more", "most", "other", "another", "such", "only", "own", "same", "few", "lot",
+  "so", "just", "now", "then", "here", "there", "up", "down", "out", "off", "over", "again", "further", "once", "too", "very",
+  "this", "that", "these", "those", "than", "also", "back", "after", "used", "using",
+  "please", "help", "sure", "way", "need", "want", "like", "new", "good", "best", "well", "easy", "simple", "quick", "fast", "available", "ready", "clean",
+];
 
 function normalizeText(text: string): string {
   if (!text) {
@@ -29,7 +40,8 @@ export class SimpleTokenizer implements Tokenizer {
   private minTokenLength: number;
 
   constructor(options: TokenizerOptions = {}) {
-    this.stopwords = new Set((options.stopwords ?? []).map((word) => word.toLowerCase()));
+    const stopwordsList = options.stopwords ?? DEFAULT_STOPWORDS;
+    this.stopwords = new Set(stopwordsList.map((word) => word.toLowerCase()));
     this.minTokenLength = Math.max(1, options.minTokenLength ?? DEFAULT_MIN_TOKEN_LENGTH);
   }
 
