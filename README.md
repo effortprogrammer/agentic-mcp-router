@@ -35,7 +35,6 @@ so lexical search remains effective.
 - **Router daemon**: `tool-routerd` JSON-RPC over stdio (local IPC)
 - **Python wrapper**: MCP sync, LLM orchestration, daemon lifecycle
 
-
 ## Quickstart
 
 First, install Node dependencies and build the TypeScript packages:
@@ -89,6 +88,7 @@ result = hub.call_tool(tool_ids[0], {"query": "latest report"})
 ```
 
 Notes:
+
 - Only `stdio` transport is supported for MCP servers.
 - `init` payloads are supported in YAML; set `initialized: true` to send the notification after `initialize`.
 
@@ -145,7 +145,9 @@ Environment variables:
 - `OPENCODE_CONFIG`: path to OpenCode config (default: `~/.config/opencode/opencode.json`)
 - `ROUTERD`: override the router daemon command
 - `ROUTER_IGNORE_IDS`: comma-separated MCP server IDs to ignore
-- `ROUTER_INCLUDE_DISABLED`: set to `false` to skip disabled entries
+- `ROUTER_INCLUDE_DISABLED`: include disabled MCP entries (default: `true`). Set to `false` to skip them.
+- `ROUTER_MCP_ID`: MCP server ID for the router itself (auto-added to ignore list)
+- `ROUTER_SESSION_ID`: session identifier for working-set tracking (default: `default`)
 
 This keeps the MCP tool list tiny inside OpenCode while the router dynamically
 selects tools and proxies calls to the underlying servers.
@@ -224,20 +226,20 @@ sequenceDiagram
     D->>Core: normalize + structured-first + truncate
     D-->>Py: ReducedToolResult
 ```
+
 ## Repository layout
 
 ```
 packages/
   core/      # BM25, tokenizer, working set, result policy
   daemon/    # tool-routerd JSON-RPC server
-  cli/       # catalog build/search/eval tooling
+  cli/       # `tool-router` CLI (opencode install, config helper)
   shared/    # shared types and utilities
 python/
   mcp_tool_router/  # Python client wrapper
   pyproject.toml
 examples/
 ```
-
 
 ## License
 

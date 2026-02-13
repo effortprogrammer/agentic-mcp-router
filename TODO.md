@@ -9,4 +9,4 @@
 - [x] JSON-RPC stdio daemon wiring core methods
 - [x] Python wrapper JSON-RPC client (spawn + request/response)
 - [x] MCP sync (tools/list -> ToolCard conversion) in Python
-- [ ] Minimal integration example
+- [x] Minimal integration example
