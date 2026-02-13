@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import sys
 from typing import Any, Iterable
 
+from .mcp_http import HttpMcpClient
 from .mcp_stdio import StdioMcpClient
 from .registry import ServerRegistry, ServerSpec
 from .router import ToolRouter
@@ -19,7 +21,7 @@ class ToolRouterHub:
         self._router = router
         self._auto_sync = auto_sync
         self._include_disabled = include_disabled
-        self._clients: dict[str, object] = {}
+        self._clients: dict[str, StdioMcpClient | HttpMcpClient] = {}
         self._synced: set[str] = set()
 
     @classmethod
@@ -67,7 +69,7 @@ class ToolRouterHub:
             else self._registry.enabled()
         )
         for server in servers:
-            self.sync_server(server.id)
+            self.sync_server(server.id, raise_on_error=False)
 
     def sync_missing(self) -> None:
         servers = (
@@ -77,14 +79,24 @@ class ToolRouterHub:
         )
         for server in servers:
             if server.id not in self._synced:
-                self.sync_server(server.id)
+                self.sync_server(server.id, raise_on_error=False)
 
-    def sync_server(self, server_id: str) -> None:
+    def sync_server(self, server_id: str, *, raise_on_error: bool = True) -> None:
         server = self._require_server(server_id)
         if not server.enabled and not self._include_disabled:
             raise ValueError(f"Server '{server_id}' is disabled.")
-        client = self._ensure_client(server)
-        self._router.sync_from_mcp(server_id, client)
+        try:
+            client = self._ensure_client(server)
+            self._router.sync_from_mcp(server_id, client)
+        except Exception as exc:
+            if server.transport == "http" and not raise_on_error:
+                print(
+                    f"[mcp-tool-router] Warning: failed to sync remote server "
+                    f"'{server_id}': {exc}",
+                    file=sys.stderr,
+                )
+                return
+            raise
         self._synced.add(server_id)
 
     def select_tools(
@@ -133,22 +145,30 @@ class ToolRouterHub:
             raise KeyError(f"Unknown server '{server_id}'.")
         return server
 
-    def _ensure_client(self, server: ServerSpec) -> object:
-        client = self._clients.get(server.id)
-        if client is not None:
-            return client
-        if server.transport != "stdio":
-            raise ValueError(
-                f"Unsupported transport '{server.transport}' for server '{server.id}'. stdio only."
+    def _ensure_client(self, server: ServerSpec) -> StdioMcpClient | HttpMcpClient:
+        existing = self._clients.get(server.id)
+        if existing is not None:
+            return existing
+
+        client: StdioMcpClient | HttpMcpClient
+        if server.transport == "http":
+            if not server.url:
+                raise ValueError(f"Server '{server.id}' is missing url.")
+            client = HttpMcpClient(server.url, headers=server.headers or None)
+        elif server.transport == "stdio":
+            if not server.cmd:
+                raise ValueError(f"Server '{server.id}' is missing cmd.")
+            client = StdioMcpClient(
+                server.cmd,
+                init_payload=server.init,
+                send_initialized=server.send_initialized,
+                env=server.env,
             )
-        if not server.cmd:
-            raise ValueError(f"Server '{server.id}' is missing cmd.")
-        client = StdioMcpClient(
-            server.cmd,
-            init_payload=server.init,
-            send_initialized=server.send_initialized,
-            env=server.env,
-        )
+        else:
+            raise ValueError(
+                f"Unsupported transport '{server.transport}' for server '{server.id}'."
+            )
+
         self._clients[server.id] = client
         return client
 
