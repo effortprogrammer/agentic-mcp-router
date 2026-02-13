@@ -159,25 +159,6 @@ router_tool_info({ toolId: "github:create_pull_request" })
    └─────────┘  └─────────┘  └─────────┘
 ```
 
-```mermaid
-sequenceDiagram
-    participant OC as OpenCode
-    participant R as Router MCP Server
-    participant D as Router Daemon
-    participant MCP as MCP Server
-
-    OC->>R: router_select_tools({ query: "..." })
-    R->>D: ws.update(query, budget, pin)
-    D->>D: BM25/Regex search + working-set
-    D-->>R: selectedToolIds
-    R-->>OC: tool IDs + definitions
-
-    OC->>R: router_call_tool({ toolId, arguments })
-    R->>MCP: tools/call(name, arguments)
-    MCP-->>R: result
-    R-->>OC: result
-```
-
 ## Configuration
 
 ### Environment Variables
@@ -191,25 +172,6 @@ sequenceDiagram
 | `ROUTER_INCLUDE_DISABLED` | `true`                             | Include disabled MCP entries from config              |
 | `ROUTER_MCP_ID`           | _(empty)_                          | Router's own MCP ID (auto-added to ignore list)       |
 | `ROUTER_SESSION_ID`       | `default`                          | Session ID for working-set tracking                   |
-
-### BM25 Search Weights
-
-The BM25 engine indexes 9 weighted fields per tool:
-
-| Field         | Weight | Description                  |
-| ------------- | ------ | ---------------------------- |
-| `name`        | 4.0    | Tool name (highest priority) |
-| `synonyms`    | 2.5    | Derived alternate names      |
-| `title`       | 2.0    | Human-readable title         |
-| `description` | 1.8    | Tool description             |
-| `argNames`    | 1.4    | Argument names               |
-| `argDescs`    | 1.2    | Argument descriptions        |
-| `tags`        | 1.2    | Derived tags                 |
-| `examples`    | 0.9    | Usage examples               |
-| `serverId`    | 0.2    | Server identifier            |
-
-Default BM25 parameters: `k1=1.2`, `b=0.75`. Additional boosts: exact match (+1.5),
-prefix match (+0.4), popularity bonus.
 
 ### Minimum MCP Tool Fields
 
