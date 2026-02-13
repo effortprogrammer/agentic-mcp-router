@@ -8,11 +8,8 @@ import { fileURLToPath } from "node:url";
 
 type JsonObject = Record<string, unknown>;
 
-const DEFAULT_ROUTER_COMMAND = [
-  "python3",
-  "-m",
-  "mcp_tool_router.router_mcp_server",
-];
+const ROUTER_MODULE = "mcp_tool_router.router_mcp_server";
+const REQUIRED_PACKAGES = ["httpx", "pyyaml"];
 
 const WELL_KNOWN_REMOTE_MCPS: Record<string, JsonObject> = {
   context7: {
@@ -64,11 +61,12 @@ function opencodeInstall(args: string[]): void {
   const payload = loadConfig(configPath);
   const mcp = ensureMcp(payload);
 
-  const routerCommand =
-    options.routerCommand.length > 0
-      ? options.routerCommand
-      : DEFAULT_ROUTER_COMMAND;
   const routerId = options.routerId;
+  const monorepoRoot = findMonorepoRoot();
+  const resolved =
+    options.routerCommand.length > 0
+      ? { command: options.routerCommand, env: {} as Record<string, string> }
+      : resolveRouterCommand(monorepoRoot);
 
   const existing = mcp[routerId];
   const routerEntry =
@@ -77,16 +75,15 @@ function opencodeInstall(args: string[]): void {
       : {};
   routerEntry.type = "local";
   routerEntry.enabled = true;
-  routerEntry.command = routerCommand;
+  routerEntry.command = resolved.command;
 
-  const envOverrides = resolveEnvOverrides();
-  if (Object.keys(envOverrides).length > 0) {
+  if (Object.keys(resolved.env).length > 0) {
     const environment =
       typeof routerEntry.environment === "object" &&
       routerEntry.environment !== null
         ? { ...(routerEntry.environment as JsonObject) }
         : {};
-    Object.assign(environment, envOverrides);
+    Object.assign(environment, resolved.env);
     routerEntry.environment = environment;
   }
 
@@ -317,9 +314,11 @@ function printJson(payload: JsonObject): void {
   console.log(JSON.stringify(payload, null, 2));
 }
 
-function resolveEnvOverrides(): Record<string, string> {
+function resolveRouterCommand(
+  monorepoRoot: string | null,
+): { command: string[]; env: Record<string, string> } {
   const env: Record<string, string> = {};
-  const monorepoRoot = findMonorepoRoot();
+  const defaultCommand = ["python3", "-m", ROUTER_MODULE];
 
   if (monorepoRoot) {
     const pythonDir = path.join(monorepoRoot, "python");
@@ -327,15 +326,7 @@ function resolveEnvOverrides(): Record<string, string> {
       fs.existsSync(pythonDir) &&
       fs.existsSync(path.join(pythonDir, "mcp_tool_router"))
     ) {
-      const python = findPython();
-      const alreadyImportable =
-        python !== null &&
-        spawnSync(python, ["-c", "import mcp_tool_router"], {
-          stdio: "pipe",
-        }).status === 0;
-      if (!alreadyImportable) {
-        env.PYTHONPATH = pythonDir;
-      }
+      env.PYTHONPATH = pythonDir;
     }
 
     const daemonCli = path.join(
@@ -350,7 +341,59 @@ function resolveEnvOverrides(): Record<string, string> {
     }
   }
 
-  return env;
+  // 1. Project .venv python — has all deps installed
+  if (monorepoRoot) {
+    const venvPython = path.join(monorepoRoot, ".venv", "bin", "python3");
+    if (
+      fs.existsSync(venvPython) &&
+      canImport(venvPython, "httpx", env)
+    ) {
+      return { command: [venvPython, "-m", ROUTER_MODULE], env };
+    }
+  }
+
+  // 2. System python3 — if deps already available
+  const systemPython = findPython();
+  if (
+    systemPython !== null &&
+    canImport(systemPython, "httpx", env)
+  ) {
+    return { command: [systemPython, "-m", ROUTER_MODULE], env };
+  }
+
+  // 3. uv run — auto-installs deps in ephemeral env
+  const uv = findCommand("uv");
+  if (uv !== null) {
+    const withArgs = REQUIRED_PACKAGES.flatMap((pkg) => ["--with", pkg]);
+    return {
+      command: [uv, "run", ...withArgs, "python3", "-m", ROUTER_MODULE],
+      env,
+    };
+  }
+
+  // 4. Fallback — bare python3 (may fail if deps missing)
+  return { command: defaultCommand, env };
+}
+
+function canImport(
+  python: string,
+  pkg: string,
+  env: Record<string, string>,
+): boolean {
+  const r = spawnSync(python, ["-c", `import ${pkg}`], {
+    stdio: "pipe",
+    env: { ...process.env, ...env },
+  });
+  return r.status === 0;
+}
+
+function findCommand(name: string): string | null {
+  const r = spawnSync("which", [name], { stdio: "pipe" });
+  if (r.status === 0) {
+    const out = r.stdout?.toString().trim();
+    return out || null;
+  }
+  return null;
 }
 
 function findMonorepoRoot(): string | null {

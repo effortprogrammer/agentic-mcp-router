@@ -8,7 +8,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-DEFAULT_ROUTER_CMD = ["python3", "-m", "mcp_tool_router.router_mcp_server"]
+_ROUTER_MODULE = "mcp_tool_router.router_mcp_server"
+_REQUIRED_PACKAGES = ["httpx", "pyyaml"]
 
 _WELL_KNOWN_REMOTE_MCPS: dict[str, dict[str, Any]] = {
     "context7": {
@@ -39,7 +40,12 @@ def apply_router_config(
     payload, path = _load_config(config_path)
     mcp = _ensure_mcp(payload)
 
-    command = list(router_command or DEFAULT_ROUTER_CMD)
+    if router_command:
+        resolved_cmd = list(router_command)
+        resolved_env: dict[str, str] = {}
+    else:
+        resolved_cmd, resolved_env = _resolve_router_command()
+
     router_entry = (
         dict(mcp.get(router_id, {})) if isinstance(mcp.get(router_id), dict) else {}
     )
@@ -47,17 +53,16 @@ def apply_router_config(
         {
             "type": "local",
             "enabled": True,
-            "command": command,
+            "command": resolved_cmd,
         }
     )
-    env_overrides = _resolve_env_overrides()
-    if env_overrides:
+    if resolved_env:
         environment = (
             dict(router_entry.get("environment", {}))
             if isinstance(router_entry.get("environment"), dict)
             else {}
         )
-        environment.update(env_overrides)
+        environment.update(resolved_env)
         router_entry["environment"] = environment
 
     mcp[router_id] = router_entry
@@ -123,7 +128,12 @@ def main() -> int:
 
     payload, path = _load_config(args.config)
     mcp = _ensure_mcp(payload)
-    command = list(args.router_command or DEFAULT_ROUTER_CMD)
+
+    if args.router_command:
+        resolved_cmd = list(args.router_command)
+        resolved_env: dict[str, str] = {}
+    else:
+        resolved_cmd, resolved_env = _resolve_router_command()
 
     router_entry = (
         dict(mcp.get(args.router_id, {}))
@@ -134,17 +144,16 @@ def main() -> int:
         {
             "type": "local",
             "enabled": True,
-            "command": command,
+            "command": resolved_cmd,
         }
     )
-    env_overrides = _resolve_env_overrides()
-    if env_overrides:
+    if resolved_env:
         environment = (
             dict(router_entry.get("environment", {}))
             if isinstance(router_entry.get("environment"), dict)
             else {}
         )
-        environment.update(env_overrides)
+        environment.update(resolved_env)
         router_entry["environment"] = environment
 
     mcp[args.router_id] = router_entry
@@ -206,22 +215,51 @@ def _disable_oh_my_opencode_mcps(config_dir: Path, *, create_backup: bool) -> No
     )
 
 
-def _resolve_env_overrides() -> dict[str, str]:
+def _resolve_router_command() -> tuple[list[str], dict[str, str]]:
+    default_cmd = ["python3", "-m", _ROUTER_MODULE]
     env: dict[str, str] = {}
     monorepo_root = _find_monorepo_root()
-    if monorepo_root is None:
-        return env
 
-    python_dir = monorepo_root / "python"
-    if python_dir.is_dir() and (python_dir / "mcp_tool_router").is_dir():
-        if not _is_package_importable():
+    if monorepo_root is not None:
+        python_dir = monorepo_root / "python"
+        if python_dir.is_dir() and (python_dir / "mcp_tool_router").is_dir():
             env["PYTHONPATH"] = str(python_dir)
 
-    daemon_cli = monorepo_root / "packages" / "daemon" / "dist" / "cli.js"
-    if daemon_cli.is_file():
-        env["ROUTERD"] = f"node {daemon_cli}"
+        daemon_cli = monorepo_root / "packages" / "daemon" / "dist" / "cli.js"
+        if daemon_cli.is_file():
+            env["ROUTERD"] = f"node {daemon_cli}"
 
-    return env
+    # 1. Project .venv python
+    if monorepo_root is not None:
+        venv_python = monorepo_root / ".venv" / "bin" / "python3"
+        if venv_python.is_file() and _can_import(str(venv_python), "httpx", env):
+            return [str(venv_python), "-m", _ROUTER_MODULE], env
+
+    # 2. System python3
+    system_python = _find_python()
+    if system_python is not None and _can_import(system_python, "httpx", env):
+        return [system_python, "-m", _ROUTER_MODULE], env
+
+    # 3. uv run
+    uv = shutil.which("uv")
+    if uv is not None:
+        with_args: list[str] = []
+        for pkg in _REQUIRED_PACKAGES:
+            with_args.extend(["--with", pkg])
+        return [uv, "run", *with_args, "python3", "-m", _ROUTER_MODULE], env
+
+    # 4. Fallback
+    return default_cmd, env
+
+
+def _can_import(python: str, pkg: str, env: dict[str, str]) -> bool:
+    merged_env = {**os.environ, **env}
+    result = subprocess.run(
+        [python, "-c", f"import {pkg}"],
+        capture_output=True,
+        env=merged_env,
+    )
+    return result.returncode == 0
 
 
 def _find_monorepo_root() -> Path | None:
@@ -236,17 +274,6 @@ def _find_monorepo_root() -> Path | None:
             break
         current = parent
     return None
-
-
-def _is_package_importable() -> bool:
-    python = _find_python()
-    if python is None:
-        return False
-    result = subprocess.run(
-        [python, "-c", "import mcp_tool_router"],
-        capture_output=True,
-    )
-    return result.returncode == 0
 
 
 def _find_python() -> str | None:
