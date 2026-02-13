@@ -3,14 +3,25 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 type JsonObject = Record<string, unknown>;
 
-const DEFAULT_ROUTER_COMMAND = ["python3", "-m", "mcp_tool_router.router_mcp_server"];
+const DEFAULT_ROUTER_COMMAND = [
+  "python3",
+  "-m",
+  "mcp_tool_router.router_mcp_server",
+];
 
 function main(): void {
   const args = process.argv.slice(2);
-  if (args.length === 0 || args[0] === "help" || args[0] === "--help" || args[0] === "-h") {
+  if (
+    args.length === 0 ||
+    args[0] === "help" ||
+    args[0] === "--help" ||
+    args[0] === "-h"
+  ) {
     printHelp();
     return;
   }
@@ -28,20 +39,38 @@ function main(): void {
 function opencodeInstall(args: string[]): void {
   const options = parseInstallArgs(args);
   const configPath = expandHome(
-    options.config || process.env.OPENCODE_CONFIG || "~/.config/opencode/opencode.json",
+    options.config ||
+      process.env.OPENCODE_CONFIG ||
+      "~/.config/opencode/opencode.json",
   );
   const payload = loadConfig(configPath);
   const mcp = ensureMcp(payload);
 
-  const routerCommand = options.routerCommand.length > 0 ? options.routerCommand : DEFAULT_ROUTER_COMMAND;
+  const routerCommand =
+    options.routerCommand.length > 0
+      ? options.routerCommand
+      : DEFAULT_ROUTER_COMMAND;
   const routerId = options.routerId;
 
   const existing = mcp[routerId];
   const routerEntry =
-    typeof existing === "object" && existing !== null ? { ...(existing as JsonObject) } : {};
+    typeof existing === "object" && existing !== null
+      ? { ...(existing as JsonObject) }
+      : {};
   routerEntry.type = "local";
   routerEntry.enabled = true;
   routerEntry.command = routerCommand;
+
+  const pythonPath = resolvePythonPath();
+  if (pythonPath) {
+    const env =
+      typeof routerEntry.env === "object" && routerEntry.env !== null
+        ? { ...(routerEntry.env as JsonObject) }
+        : {};
+    env.PYTHONPATH = pythonPath;
+    routerEntry.env = env;
+  }
+
   mcp[routerId] = routerEntry;
 
   if (options.disableOthers) {
@@ -81,13 +110,21 @@ function parseInstallArgs(args: string[]): {
 
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
-    if (arg === "--config" && args[i + 1]) {
-      config = args[i + 1];
+    if (arg === "--config") {
+      const value = args[i + 1];
+      if (!value) {
+        throw new Error("--config requires a value");
+      }
+      config = value;
       i += 1;
       continue;
     }
-    if (arg === "--router-id" && args[i + 1]) {
-      routerId = args[i + 1];
+    if (arg === "--router-id") {
+      const value = args[i + 1];
+      if (!value) {
+        throw new Error("--router-id requires a value");
+      }
+      routerId = value;
       i += 1;
       continue;
     }
@@ -113,27 +150,42 @@ function parseInstallArgs(args: string[]): {
       dryRun = true;
       continue;
     }
-    if (arg.startsWith("--")) {
+    if (arg && arg.startsWith("--")) {
       console.error(`Unknown option: ${arg}`);
       process.exit(1);
     }
   }
 
-  return { config, routerId, routerCommand, disableOthers, createBackup, dryRun };
+  return {
+    config,
+    routerId,
+    routerCommand,
+    disableOthers,
+    createBackup,
+    dryRun,
+  };
 }
 
-function readCommandArgs(args: string[], startIndex: number): { command: string[]; nextIndex: number } {
+function readCommandArgs(
+  args: string[],
+  startIndex: number,
+): { command: string[]; nextIndex: number } {
   const command: string[] = [];
   let i = startIndex;
   for (; i < args.length; i += 1) {
-    if (args[i].startsWith("--")) {
+    const current = args[i];
+    if (!current) {
+      continue;
+    }
+    if (current.startsWith("--")) {
       i -= 1;
       break;
     }
-    command.push(args[i]);
+    command.push(current);
   }
-  if (command.length === 1 && command[0].includes(" ")) {
-    command.splice(0, 1, ...command[0].split(" ").filter(Boolean));
+  const first = command[0];
+  if (command.length === 1 && first && first.includes(" ")) {
+    command.splice(0, 1, ...first.split(" ").filter(Boolean));
   }
   return { command, nextIndex: i };
 }
@@ -144,7 +196,11 @@ function loadConfig(configPath: string): JsonObject {
   }
   const raw = fs.readFileSync(configPath, "utf-8");
   const payload = JSON.parse(raw);
-  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    Array.isArray(payload)
+  ) {
     throw new Error("OpenCode config must be a JSON object.");
   }
   return payload as JsonObject;
@@ -154,13 +210,21 @@ function ensureMcp(payload: JsonObject): Record<string, JsonObject> {
   if (!("mcp" in payload) || payload.mcp == null) {
     payload.mcp = {};
   }
-  if (typeof payload.mcp !== "object" || payload.mcp === null || Array.isArray(payload.mcp)) {
+  if (
+    typeof payload.mcp !== "object" ||
+    payload.mcp === null ||
+    Array.isArray(payload.mcp)
+  ) {
     throw new Error("OpenCode config 'mcp' field must be an object.");
   }
   return payload.mcp as Record<string, JsonObject>;
 }
 
-function writeConfig(configPath: string, payload: JsonObject, createBackup: boolean): void {
+function writeConfig(
+  configPath: string,
+  payload: JsonObject,
+  createBackup: boolean,
+): void {
   const dir = path.dirname(configPath);
   fs.mkdirSync(dir, { recursive: true });
   if (createBackup && fs.existsSync(configPath)) {
@@ -178,6 +242,55 @@ function expandHome(value: string): string {
 
 function printJson(payload: JsonObject): void {
   console.log(JSON.stringify(payload, null, 2));
+}
+
+/**
+ * Resolve the PYTHONPATH needed for the router MCP server.
+ *
+ * 1. If `import mcp_tool_router` succeeds under the current Python, the
+ *    package is already installed (via pip/uv) — no PYTHONPATH needed.
+ * 2. Otherwise, walk up from *this* JS file looking for a sibling `python/`
+ *    directory that contains `mcp_tool_router/`.  This covers both the
+ *    monorepo layout (`<root>/packages/cli/dist/index.js` → `<root>/python`)
+ *    and editable / git-clone installs.
+ * 3. If nothing is found, return null and let the user handle it.
+ */
+function resolvePythonPath(): string | null {
+  const python = findPython();
+  if (python) {
+    const check = spawnSync(python, ["-c", "import mcp_tool_router"], {
+      stdio: "pipe",
+    });
+    if (check.status === 0) {
+      return null;
+    }
+  }
+
+  const thisDir = path.dirname(fileURLToPath(import.meta.url));
+  let dir = thisDir;
+  const root = path.parse(dir).root;
+  for (let i = 0; i < 8 && dir !== root; i++) {
+    dir = path.dirname(dir);
+    const candidate = path.join(dir, "python");
+    if (
+      fs.existsSync(candidate) &&
+      fs.existsSync(path.join(candidate, "mcp_tool_router"))
+    ) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function findPython(): string | null {
+  for (const cmd of ["python3", "python"]) {
+    const r = spawnSync(cmd, ["--version"], { stdio: "pipe" });
+    if (r.status === 0) {
+      return cmd;
+    }
+  }
+  return null;
 }
 
 function printHelp(): void {
