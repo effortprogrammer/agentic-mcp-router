@@ -7,7 +7,7 @@ import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 
 const PIP_PACKAGE = "mcp-tool-router";
 const PIP_GIT_URL =
-  "git+https://github.com/effortprogrammer/agentic-mcp-router.git#subdirectory=python";
+  "git+https://github.com/effortprogrammer/agentic-tool-router.git#subdirectory=python";
 
 function main(): void {
   ensurePythonPackage();
