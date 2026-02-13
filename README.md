@@ -168,19 +168,20 @@ Options:
 
 ### CLI (npm) auto-install
 
-The CLI package also exposes a Node helper:
+The CLI package exposes a Node helper:
 
 ```bash
 npx @mcp-tool-router/cli opencode install
 ```
 
-To auto-run on install, set `OPENCODE_AUTO_INSTALL=1` when installing the CLI:
+When installed globally, the CLI auto-updates OpenCode config if it exists:
 
 ```bash
-OPENCODE_AUTO_INSTALL=1 npm i -g @mcp-tool-router/cli
+npm i -g @mcp-tool-router/cli
 ```
 
-If `OPENCODE_CONFIG` is set, the installer will use that path.
+If no config is found, it prints a friendly message. You can override the path
+with `OPENCODE_CONFIG`.
 
 ## Compare against a real MCP server
 
