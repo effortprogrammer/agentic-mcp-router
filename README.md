@@ -92,22 +92,6 @@ Options: `--config`, `--router-id`, `--router-command`, `--keep-others`, `--dry-
 
 ## Features
 
-### Always-Load Tools
-
-Pin essential tools so they always appear in results without searching:
-
-```bash
-export ROUTER_ALWAYS_LOAD="*:read,*:write,*:edit,slack:*"
-```
-
-Supports glob patterns:
-
-| Pattern           | Matches                            |
-| ----------------- | ---------------------------------- |
-| `*:read`          | `read` tool from any server        |
-| `slack:*`         | All tools from the `slack` server  |
-| `github:create_*` | All `create_*` tools from `github` |
-
 ### Regex Search Mode
 
 When you know the exact tool name, use regex mode for precise matching:
@@ -141,7 +125,7 @@ router_tool_info({ toolId: "github:create_pull_request" })
 ┌────────────────────▼────────────────────────────┐
 │  Router MCP Server (Python)                     │
 │  - Parses opencode.json for MCP server configs  │
-│  - Always-load pattern resolution               │
+│  - Tool call proxying + result reduction          │
 │  - Tool call proxying                           │
 └────────────────────┬────────────────────────────┘
                      │ JSON-RPC stdio
@@ -163,15 +147,14 @@ router_tool_info({ toolId: "github:create_pull_request" })
 
 ### Environment Variables
 
-| Variable                  | Default                            | Description                                           |
-| ------------------------- | ---------------------------------- | ----------------------------------------------------- |
-| `OPENCODE_CONFIG`         | `~/.config/opencode/opencode.json` | Path to OpenCode config                               |
-| `ROUTERD`                 | auto-detect                        | Override the router daemon command                    |
-| `ROUTER_ALWAYS_LOAD`      | _(empty)_                          | Comma-separated glob patterns for always-loaded tools |
-| `ROUTER_IGNORE_IDS`       | _(empty)_                          | Comma-separated MCP server IDs to skip                |
-| `ROUTER_INCLUDE_DISABLED` | `true`                             | Include disabled MCP entries from config              |
-| `ROUTER_MCP_ID`           | _(empty)_                          | Router's own MCP ID (auto-added to ignore list)       |
-| `ROUTER_SESSION_ID`       | `default`                          | Session ID for working-set tracking                   |
+| Variable                  | Default                            | Description                                     |
+| ------------------------- | ---------------------------------- | ----------------------------------------------- |
+| `OPENCODE_CONFIG`         | `~/.config/opencode/opencode.json` | Path to OpenCode config                         |
+| `ROUTERD`                 | auto-detect                        | Override the router daemon command              |
+| `ROUTER_IGNORE_IDS`       | _(empty)_                          | Comma-separated MCP server IDs to skip          |
+| `ROUTER_INCLUDE_DISABLED` | `true`                             | Include disabled MCP entries from config        |
+| `ROUTER_MCP_ID`           | _(empty)_                          | Router's own MCP ID (auto-added to ignore list) |
+| `ROUTER_SESSION_ID`       | `default`                          | Session ID for working-set tracking             |
 
 ### Minimum MCP Tool Fields
 

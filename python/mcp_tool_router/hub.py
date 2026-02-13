@@ -95,7 +95,6 @@ class ToolRouterHub:
         budget_tokens: int = 1500,
         sync: bool | None = None,
         mode: str | None = None,
-        pin: list[str] | None = None,
     ) -> list[str]:
         if sync is None:
             sync = self._auto_sync
@@ -107,7 +106,6 @@ class ToolRouterHub:
             top_k=top_k,
             budget_tokens=budget_tokens,
             mode=mode,
-            pin=pin,
         )
 
     def call_tool(self, tool_id: str, arguments: dict | None = None) -> dict:

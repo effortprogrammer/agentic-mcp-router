@@ -28,11 +28,9 @@ class RouterMcpServer:
         self,
         hub: ToolRouterHub,
         default_session: str = "default",
-        always_load_patterns: list[str] | None = None,
     ) -> None:
         self._hub = hub
         self._default_session = default_session
-        self._always_load_patterns = always_load_patterns or []
         self._tools = [
             {
                 "name": "router_select_tools",
@@ -198,10 +196,12 @@ class RouterMcpServer:
         if mode not in ("bm25", "regex", None):
             mode = None
 
-        pin = (
-            _resolve_always_load(self._always_load_patterns, self._hub.router)
-            if self._always_load_patterns
-            else None
+        tool_ids = self._hub.select_tools(
+            session_id,
+            query,
+            top_k=top_k,
+            budget_tokens=budget_tokens,
+            mode=mode,
         )
 
         tool_ids = self._hub.select_tools(
@@ -210,7 +210,6 @@ class RouterMcpServer:
             top_k=top_k,
             budget_tokens=budget_tokens,
             mode=mode,
-            pin=pin,
         )
         result: dict[str, Any] = {"selectedToolIds": tool_ids}
         if include_tools:
@@ -340,31 +339,6 @@ def _parse_id_list(value: str | None) -> set[str]:
     return {item.strip() for item in value.split(",") if item.strip()}
 
 
-def _parse_patterns(value: str | None) -> list[str]:
-    if not value:
-        return []
-    return [p.strip() for p in value.split(",") if p.strip()]
-
-
-def _resolve_always_load(patterns: list[str], router: Any) -> list[str]:
-    """Resolve glob patterns against the router's tool cache and return matching tool IDs."""
-    if not patterns:
-        return []
-    import fnmatch
-
-    all_tool_ids: list[str] = sorted(router._tool_cache.keys())
-    matched: list[str] = []
-    seen: set[str] = set()
-    for pattern in patterns:
-        for tool_id in all_tool_ids:
-            if tool_id in seen:
-                continue
-            if fnmatch.fnmatch(tool_id, pattern):
-                matched.append(tool_id)
-                seen.add(tool_id)
-    return matched
-
-
 def _load_hub() -> ToolRouterHub:
     config_path = os.environ.get("OPENCODE_CONFIG", "~/.config/opencode/opencode.json")
     include_disabled = os.environ.get(
@@ -389,10 +363,7 @@ def _load_hub() -> ToolRouterHub:
 def main() -> int:
     hub = _load_hub()
     default_session = os.environ.get("ROUTER_SESSION_ID", "default")
-    always_load = _parse_patterns(os.environ.get("ROUTER_ALWAYS_LOAD"))
-    server = RouterMcpServer(
-        hub, default_session=default_session, always_load_patterns=always_load
-    )
+    server = RouterMcpServer(hub, default_session=default_session)
     try:
         server.serve()
     finally:

@@ -179,9 +179,7 @@ class ToolRouter:
         top_k: int = 20,
         budget_tokens: int = 1500,
         mode: str | None = None,
-        pin: list[str] | None = None,
     ) -> list[str]:
-        """Update working set and return selected tool IDs."""
         params: dict[str, Any] = {
             "sessionId": session_id,
             "query": query,
@@ -190,8 +188,6 @@ class ToolRouter:
         }
         if mode is not None:
             params["mode"] = mode
-        if pin:
-            params["pin"] = pin
         result = self._rpc().request("ws.update", params)
         return list((result or {}).get("selectedToolIds", []))
 
