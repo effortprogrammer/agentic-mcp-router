@@ -5,6 +5,9 @@
   "bin": {
     "tool-router": "dist/index.js"
   },
+  "scripts": {
+    "postinstall": "node -e \"const fs=require('fs'); if(fs.existsSync('dist/postinstall.js')) require('./dist/postinstall.js');\""
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {

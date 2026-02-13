@@ -166,6 +166,22 @@ Options:
 - `--keep-others` (do not disable other MCP entries)
 - `--dry-run` (print changes only)
 
+### CLI (npm) auto-install
+
+The CLI package also exposes a Node helper:
+
+```bash
+npx @mcp-tool-router/cli opencode install
+```
+
+To auto-run on install, set `OPENCODE_AUTO_INSTALL=1` when installing the CLI:
+
+```bash
+OPENCODE_AUTO_INSTALL=1 npm i -g @mcp-tool-router/cli
+```
+
+If `OPENCODE_CONFIG` is set, the installer will use that path.
+
 ## Compare against a real MCP server
 
 Provide a real MCP stdio server and compare naive vs router selection:
