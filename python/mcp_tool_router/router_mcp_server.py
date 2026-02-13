@@ -175,12 +175,14 @@ class RouterMcpServer:
         name = params.get("name")
         arguments = params.get("arguments") or {}
         if name == "router_select_tools":
-            return self._select_tools(arguments)
-        if name == "router_call_tool":
-            return self._call_tool(arguments)
-        if name == "router_tool_info":
-            return self._tool_info(arguments)
-        raise RpcError(-32601, f"Unknown tool '{name}'.")
+            payload = self._select_tools(arguments)
+        elif name == "router_call_tool":
+            payload = self._call_tool(arguments)
+        elif name == "router_tool_info":
+            payload = self._tool_info(arguments)
+        else:
+            raise RpcError(-32601, f"Unknown tool '{name}'.")
+        return _wrap_content(payload)
 
     def _select_tools(self, arguments: dict[str, Any]) -> dict[str, Any]:
         query = str(arguments.get("query") or "").strip()
@@ -266,6 +268,13 @@ class RouterMcpServer:
         line = json.dumps(payload, separators=(",", ":"), sort_keys=True)
         sys.stdout.write(line + "\n")
         sys.stdout.flush()
+
+
+def _wrap_content(payload: Any) -> dict[str, Any]:
+    if isinstance(payload, dict) and "content" in payload:
+        return payload
+    text = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+    return {"content": [{"type": "text", "text": text}]}
 
 
 def _schema_from_card(card: dict[str, Any]) -> dict[str, Any]:
