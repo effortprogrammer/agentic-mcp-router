@@ -1,6 +1,10 @@
 import { createRouterCore } from "@mcp-tool-router/core";
 import type { RouterCore } from "@mcp-tool-router/core";
-import type { SearchQueryInput, ToolCard, WorkingSetUpdateInput } from "@mcp-tool-router/shared";
+import type {
+  SearchQueryInput,
+  ToolCard,
+  WorkingSetUpdateInput,
+} from "@mcp-tool-router/shared";
 
 export interface DaemonOptions {
   transport: "stdio" | "http";
@@ -91,7 +95,10 @@ function handleLine(line: string, handlers: RpcHandlerMap): void {
   }
 }
 
-function handleRequest(payload: unknown, handlers: RpcHandlerMap): JsonRpcResponse | null {
+function handleRequest(
+  payload: unknown,
+  handlers: RpcHandlerMap,
+): JsonRpcResponse | null {
   if (!isRecord(payload)) {
     return makeError(null, -32600, "Invalid Request");
   }
@@ -132,7 +139,12 @@ function writeResponse(response: JsonRpcResponse | JsonRpcResponse[]): void {
   process.stdout.write(line + "\n");
 }
 
-function makeError(id: JsonRpcId, code: number, message: string, data?: unknown): JsonRpcResponse {
+function makeError(
+  id: JsonRpcId,
+  code: number,
+  message: string,
+  data?: unknown,
+): JsonRpcResponse {
   const errorPayload: JsonRpcResponse["error"] = { code, message };
   if (data !== undefined) {
     errorPayload.data = data;
@@ -177,12 +189,23 @@ function createRpcHandlers(core: RouterCore): RpcHandlerMap {
       const topK = optionalNumber(payload.topK);
       const filters = payload.filters;
       const weights = payload.weights;
+      const mode =
+        typeof payload.mode === "string" &&
+        (payload.mode === "bm25" || payload.mode === "regex")
+          ? (payload.mode as SearchQueryInput["mode"])
+          : undefined;
       const input: SearchQueryInput = {
         query,
         topK: topK ?? undefined,
-        filters: isRecord(filters) ? (filters as SearchQueryInput["filters"]) : undefined,
-        weights: isRecord(weights) ? (weights as SearchQueryInput["weights"]) : undefined,
-        sessionId: typeof payload.sessionId === "string" ? payload.sessionId : undefined
+        filters: isRecord(filters)
+          ? (filters as SearchQueryInput["filters"])
+          : undefined,
+        weights: isRecord(weights)
+          ? (weights as SearchQueryInput["weights"])
+          : undefined,
+        sessionId:
+          typeof payload.sessionId === "string" ? payload.sessionId : undefined,
+        mode,
       };
       return core.search.query(input);
     },
@@ -199,13 +222,19 @@ function createRpcHandlers(core: RouterCore): RpcHandlerMap {
       const topK = optionalNumber(payload.topK);
       const pin = optionalStringArray(payload.pin);
       const unpin = optionalStringArray(payload.unpin);
+      const mode =
+        typeof payload.mode === "string" &&
+        (payload.mode === "bm25" || payload.mode === "regex")
+          ? (payload.mode as WorkingSetUpdateInput["mode"])
+          : undefined;
       const input: WorkingSetUpdateInput = {
         sessionId,
         query,
         budgetTokens,
         topK: topK ?? undefined,
         pin: pin ?? undefined,
-        unpin: unpin ?? undefined
+        unpin: unpin ?? undefined,
+        mode,
       };
       return core.workingSet.update(input);
     },
@@ -224,12 +253,19 @@ function createRpcHandlers(core: RouterCore): RpcHandlerMap {
     },
     "result.reduce": (params) => {
       const payload = expectObject(params);
-      const toolId = typeof payload.toolId === "string" ? payload.toolId : undefined;
+      const toolId =
+        typeof payload.toolId === "string" ? payload.toolId : undefined;
       if (!("rawResult" in payload)) {
-        throw new RpcError(-32602, "Invalid params", { missing: ["rawResult"] });
+        throw new RpcError(-32602, "Invalid params", {
+          missing: ["rawResult"],
+        });
       }
-      return core.result.reduce(toolId, payload.rawResult, isRecord(payload.policy) ? payload.policy : undefined);
-    }
+      return core.result.reduce(
+        toolId,
+        payload.rawResult,
+        isRecord(payload.policy) ? payload.policy : undefined,
+      );
+    },
   };
 }
 

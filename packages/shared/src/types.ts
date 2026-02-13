@@ -1,5 +1,6 @@
 export type SideEffect = "none" | "read" | "write" | "destructive";
 export type CostHint = "low" | "medium" | "high";
+export type SearchMode = "bm25" | "regex";
 
 export interface ToolArgCard {
   name: string;
@@ -72,7 +73,7 @@ export const DEFAULT_WEIGHTS: Bm25FieldWeights = {
   argDescs: 1.2,
   tags: 1.2,
   examples: 0.9,
-  serverId: 0.2
+  serverId: 0.2,
 };
 
 export interface ToolSearchHit {
@@ -93,6 +94,7 @@ export interface SearchQueryInput {
   topK?: number;
   filters?: SearchFilters;
   weights?: Partial<Bm25FieldWeights>;
+  mode?: SearchMode;
 }
 
 export interface SearchQueryResult {
@@ -127,6 +129,7 @@ export interface WorkingSetUpdateInput {
   budgetTokens: number;
   pin?: string[];
   unpin?: string[];
+  mode?: SearchMode;
 }
 
 export interface WorkingSetUpdateResult {

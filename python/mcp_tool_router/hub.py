@@ -94,13 +94,20 @@ class ToolRouterHub:
         top_k: int = 20,
         budget_tokens: int = 1500,
         sync: bool | None = None,
+        mode: str | None = None,
+        pin: list[str] | None = None,
     ) -> list[str]:
         if sync is None:
             sync = self._auto_sync
         if sync:
             self.sync_missing()
         return self._router.select_tools(
-            session_id, query, top_k=top_k, budget_tokens=budget_tokens
+            session_id,
+            query,
+            top_k=top_k,
+            budget_tokens=budget_tokens,
+            mode=mode,
+            pin=pin,
         )
 
     def call_tool(self, tool_id: str, arguments: dict | None = None) -> dict:

@@ -17,271 +17,388 @@ DEFAULT_BUDGET_TOKENS = 1500
 
 
 class RpcError(Exception):
-  def __init__(self, code: int, message: str) -> None:
-    super().__init__(message)
-    self.code = code
-    self.message = message
+    def __init__(self, code: int, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
 
 
 class RouterMcpServer:
-  def __init__(self, hub: ToolRouterHub, default_session: str = "default") -> None:
-    self._hub = hub
-    self._default_session = default_session
-    self._tools = [
-      {
-        "name": "router_select_tools",
-        "description": (
-          "Select the most relevant MCP tools for a query. "
-          "Returns tool IDs and (optionally) tool definitions."
-        ),
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "query": {"type": "string", "description": "User request to route."},
-            "sessionId": {"type": "string", "description": "Session identifier."},
-            "topK": {"type": "integer", "description": "Max tools to return."},
-            "budgetTokens": {"type": "integer", "description": "Tool token budget."},
-            "includeTools": {
-              "type": "boolean",
-              "description": "Include selected tool definitions in the response.",
+    def __init__(
+        self,
+        hub: ToolRouterHub,
+        default_session: str = "default",
+        always_load_patterns: list[str] | None = None,
+    ) -> None:
+        self._hub = hub
+        self._default_session = default_session
+        self._always_load_patterns = always_load_patterns or []
+        self._tools = [
+            {
+                "name": "router_select_tools",
+                "description": (
+                    "Select the most relevant MCP tools for a query. "
+                    "Returns tool IDs and (optionally) tool definitions."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "User request to route.",
+                        },
+                        "sessionId": {
+                            "type": "string",
+                            "description": "Session identifier.",
+                        },
+                        "topK": {
+                            "type": "integer",
+                            "description": "Max tools to return.",
+                        },
+                        "budgetTokens": {
+                            "type": "integer",
+                            "description": "Tool token budget.",
+                        },
+                        "includeTools": {
+                            "type": "boolean",
+                            "description": "Include selected tool definitions in the response.",
+                        },
+                        "mode": {
+                            "type": "string",
+                            "enum": ["bm25", "regex"],
+                            "description": "Search mode: 'bm25' (default) for ranked keyword search, 'regex' for pattern matching.",
+                        },
+                    },
+                    "required": ["query"],
+                },
             },
-          },
-          "required": ["query"],
-        },
-      },
-      {
-        "name": "router_call_tool",
-        "description": "Call a selected MCP tool by toolId.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "toolId": {"type": "string", "description": "{serverId}:{toolName}"},
-            "arguments": {"type": "object", "description": "Tool arguments."},
-            "sessionId": {"type": "string", "description": "Session identifier."},
-            "reduce": {
-              "type": "boolean",
-              "description": "Return reduced result alongside raw output.",
+            {
+                "name": "router_call_tool",
+                "description": "Call a selected MCP tool by toolId.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "toolId": {
+                            "type": "string",
+                            "description": "{serverId}:{toolName}",
+                        },
+                        "arguments": {
+                            "type": "object",
+                            "description": "Tool arguments.",
+                        },
+                        "sessionId": {
+                            "type": "string",
+                            "description": "Session identifier.",
+                        },
+                        "reduce": {
+                            "type": "boolean",
+                            "description": "Return reduced result alongside raw output.",
+                        },
+                    },
+                    "required": ["toolId"],
+                },
             },
-          },
-          "required": ["toolId"],
-        },
-      },
-    ]
+            {
+                "name": "router_tool_info",
+                "description": (
+                    "Get detailed information about a specific tool including its full JSON schema. "
+                    "Use this to inspect a tool's parameters before calling it."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "toolId": {
+                            "type": "string",
+                            "description": "Tool ID in '{serverId}:{toolName}' format.",
+                        },
+                    },
+                    "required": ["toolId"],
+                },
+            },
+        ]
 
-  def serve(self) -> None:
-    for raw in sys.stdin:
-      line = raw.strip()
-      if not line:
-        continue
-      try:
-        message = json.loads(line)
-      except json.JSONDecodeError:
-        continue
-      if "id" not in message:
-        self._handle_notification(message)
-        continue
-      response = self._handle_request(message)
-      self._write_response(response)
+    def serve(self) -> None:
+        for raw in sys.stdin:
+            line = raw.strip()
+            if not line:
+                continue
+            try:
+                message = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if "id" not in message:
+                self._handle_notification(message)
+                continue
+            response = self._handle_request(message)
+            self._write_response(response)
 
-  def _handle_notification(self, message: dict[str, Any]) -> None:
-    method = message.get("method")
-    if method == "initialized":
-      return None
-    return None
+    def _handle_notification(self, message: dict[str, Any]) -> None:
+        method = message.get("method")
+        if method == "initialized":
+            return None
+        return None
 
-  def _handle_request(self, message: dict[str, Any]) -> dict[str, Any]:
-    request_id = message.get("id")
-    try:
-      result = self._dispatch(message.get("method"), message.get("params") or {})
-      return {"jsonrpc": "2.0", "id": request_id, "result": result}
-    except RpcError as exc:
-      return {
-        "jsonrpc": "2.0",
-        "id": request_id,
-        "error": {"code": exc.code, "message": exc.message},
-      }
-    except Exception as exc:  # pragma: no cover - safety net
-      return {
-        "jsonrpc": "2.0",
-        "id": request_id,
-        "error": {"code": -32000, "message": str(exc)},
-      }
+    def _handle_request(self, message: dict[str, Any]) -> dict[str, Any]:
+        request_id = message.get("id")
+        try:
+            result = self._dispatch(message.get("method"), message.get("params") or {})
+            return {"jsonrpc": "2.0", "id": request_id, "result": result}
+        except RpcError as exc:
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {"code": exc.code, "message": exc.message},
+            }
+        except Exception as exc:  # pragma: no cover - safety net
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {"code": -32000, "message": str(exc)},
+            }
 
-  def _dispatch(self, method: str | None, params: dict[str, Any]) -> Any:
-    if method == "initialize":
-      return self._handle_initialize(params)
-    if method == "tools/list":
-      return {"tools": self._tools}
-    if method == "tools/call":
-      return self._handle_tools_call(params)
-    raise RpcError(-32601, f"Unknown method '{method}'.")
+    def _dispatch(self, method: str | None, params: dict[str, Any]) -> Any:
+        if method == "initialize":
+            return self._handle_initialize(params)
+        if method == "tools/list":
+            return {"tools": self._tools}
+        if method == "tools/call":
+            return self._handle_tools_call(params)
+        raise RpcError(-32601, f"Unknown method '{method}'.")
 
-  def _handle_initialize(self, params: dict[str, Any]) -> dict[str, Any]:
-    _ = params
-    return {
-      "protocolVersion": PROTOCOL_VERSION,
-      "capabilities": {"tools": {}},
-      "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
-    }
+    def _handle_initialize(self, params: dict[str, Any]) -> dict[str, Any]:
+        _ = params
+        return {
+            "protocolVersion": PROTOCOL_VERSION,
+            "capabilities": {"tools": {}},
+            "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
+        }
 
-  def _handle_tools_call(self, params: dict[str, Any]) -> Any:
-    name = params.get("name")
-    arguments = params.get("arguments") or {}
-    if name == "router_select_tools":
-      return self._select_tools(arguments)
-    if name == "router_call_tool":
-      return self._call_tool(arguments)
-    raise RpcError(-32601, f"Unknown tool '{name}'.")
+    def _handle_tools_call(self, params: dict[str, Any]) -> Any:
+        name = params.get("name")
+        arguments = params.get("arguments") or {}
+        if name == "router_select_tools":
+            return self._select_tools(arguments)
+        if name == "router_call_tool":
+            return self._call_tool(arguments)
+        if name == "router_tool_info":
+            return self._tool_info(arguments)
+        raise RpcError(-32601, f"Unknown tool '{name}'.")
 
-  def _select_tools(self, arguments: dict[str, Any]) -> dict[str, Any]:
-    query = str(arguments.get("query") or "").strip()
-    if not query:
-      raise RpcError(-32602, "router_select_tools requires 'query'.")
-    session_id = str(arguments.get("sessionId") or self._default_session)
-    top_k = _coerce_int(arguments.get("topK"), DEFAULT_TOP_K)
-    budget_tokens = _coerce_int(arguments.get("budgetTokens"), DEFAULT_BUDGET_TOKENS)
-    include_tools = bool(arguments.get("includeTools", True))
+    def _select_tools(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        query = str(arguments.get("query") or "").strip()
+        if not query:
+            raise RpcError(-32602, "router_select_tools requires 'query'.")
+        session_id = str(arguments.get("sessionId") or self._default_session)
+        top_k = _coerce_int(arguments.get("topK"), DEFAULT_TOP_K)
+        budget_tokens = _coerce_int(
+            arguments.get("budgetTokens"), DEFAULT_BUDGET_TOKENS
+        )
+        include_tools = bool(arguments.get("includeTools", True))
+        mode = arguments.get("mode")
+        if mode not in ("bm25", "regex", None):
+            mode = None
 
-    tool_ids = self._hub.select_tools(
-      session_id,
-      query,
-      top_k=top_k,
-      budget_tokens=budget_tokens,
-    )
-    result: dict[str, Any] = {"selectedToolIds": tool_ids}
-    if include_tools:
-      result["tools"] = self._format_tools(tool_ids)
-    return result
+        pin = (
+            _resolve_always_load(self._always_load_patterns, self._hub.router)
+            if self._always_load_patterns
+            else None
+        )
 
-  def _call_tool(self, arguments: dict[str, Any]) -> dict[str, Any]:
-    tool_id = str(arguments.get("toolId") or arguments.get("tool_id") or "").strip()
-    if not tool_id:
-      raise RpcError(-32602, "router_call_tool requires 'toolId'.")
-    payload = arguments.get("arguments") or {}
-    result = self._hub.call_tool(tool_id, payload)
+        tool_ids = self._hub.select_tools(
+            session_id,
+            query,
+            top_k=top_k,
+            budget_tokens=budget_tokens,
+            mode=mode,
+            pin=pin,
+        )
+        result: dict[str, Any] = {"selectedToolIds": tool_ids}
+        if include_tools:
+            result["tools"] = self._format_tools(tool_ids)
+        return result
 
-    session_id = arguments.get("sessionId") or self._default_session
-    if session_id:
-      self._hub.router.mark_tool_used(str(session_id), tool_id)
+    def _call_tool(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        tool_id = str(arguments.get("toolId") or arguments.get("tool_id") or "").strip()
+        if not tool_id:
+            raise RpcError(-32602, "router_call_tool requires 'toolId'.")
+        payload = arguments.get("arguments") or {}
+        result = self._hub.call_tool(tool_id, payload)
 
-    if bool(arguments.get("reduce")):
-      reduced = self._hub.router.reduce_result(tool_id, result)
-      return {"toolId": tool_id, "rawResult": result, "reduced": reduced}
-    return result
+        session_id = arguments.get("sessionId") or self._default_session
+        if session_id:
+            self._hub.router.mark_tool_used(str(session_id), tool_id)
 
-  def _format_tools(self, tool_ids: Iterable[str]) -> list[dict[str, Any]]:
-    router = self._hub.router
-    tools: list[dict[str, Any]] = []
-    for tool_id in tool_ids:
-      card = router.get_tool_card(tool_id) or {}
-      raw = router.get_raw_tool(tool_id) or {}
-      tool: dict[str, Any] = dict(raw) if raw else {}
-      if "name" not in tool and card.get("toolName"):
-        tool["name"] = card["toolName"]
-      if "description" not in tool and card.get("description"):
-        tool["description"] = card["description"]
-      if "inputSchema" not in tool:
-        if "input_schema" in tool:
-          tool["inputSchema"] = tool["input_schema"]
-        elif card:
-          tool["inputSchema"] = _schema_from_card(card)
-      tool["toolId"] = tool_id
-      tool["serverId"] = card.get("serverId") or tool_id.split(":", 1)[0]
-      tool["toolName"] = card.get("toolName") or tool.get("name")
-      tools.append(tool)
-    return tools
+        if bool(arguments.get("reduce")):
+            reduced = self._hub.router.reduce_result(tool_id, result)
+            return {"toolId": tool_id, "rawResult": result, "reduced": reduced}
+        return result
 
-  def _write_response(self, payload: dict[str, Any]) -> None:
-    line = json.dumps(payload, separators=(",", ":"), sort_keys=True)
-    sys.stdout.write(line + "\n")
-    sys.stdout.flush()
+    def _tool_info(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        tool_id = str(arguments.get("toolId") or arguments.get("tool_id") or "").strip()
+        if not tool_id:
+            raise RpcError(-32602, "router_tool_info requires 'toolId'.")
+        router = self._hub.router
+        card = router.get_tool_card(tool_id)
+        raw = router.get_raw_tool(tool_id)
+        if card is None and raw is None:
+            raise RpcError(-32602, f"Tool '{tool_id}' not found.")
+        result: dict[str, Any] = {"toolId": tool_id}
+        if card is not None:
+            result["toolCard"] = card
+        if raw is not None:
+            result["rawDefinition"] = raw
+        return result
+
+    def _format_tools(self, tool_ids: Iterable[str]) -> list[dict[str, Any]]:
+        router = self._hub.router
+        tools: list[dict[str, Any]] = []
+        for tool_id in tool_ids:
+            card = router.get_tool_card(tool_id) or {}
+            raw = router.get_raw_tool(tool_id) or {}
+            tool: dict[str, Any] = dict(raw) if raw else {}
+            if "name" not in tool and card.get("toolName"):
+                tool["name"] = card["toolName"]
+            if "description" not in tool and card.get("description"):
+                tool["description"] = card["description"]
+            if "inputSchema" not in tool:
+                if "input_schema" in tool:
+                    tool["inputSchema"] = tool["input_schema"]
+                elif card:
+                    tool["inputSchema"] = _schema_from_card(card)
+            tool["toolId"] = tool_id
+            tool["serverId"] = card.get("serverId") or tool_id.split(":", 1)[0]
+            tool["toolName"] = card.get("toolName") or tool.get("name")
+            tools.append(tool)
+        return tools
+
+    def _write_response(self, payload: dict[str, Any]) -> None:
+        line = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+        sys.stdout.write(line + "\n")
+        sys.stdout.flush()
 
 
 def _schema_from_card(card: dict[str, Any]) -> dict[str, Any]:
-  props: dict[str, Any] = {}
-  required: list[str] = []
-  for arg in card.get("args", []):
-    if not isinstance(arg, dict):
-      continue
-    name = arg.get("name")
-    if not name:
-      continue
-    prop: dict[str, Any] = {}
-    if "description" in arg:
-      prop["description"] = arg["description"]
-    type_hint = arg.get("typeHint")
-    if isinstance(type_hint, str):
-      base_type = type_hint.split(":", 1)[0]
-      if base_type in {"string", "number", "integer", "boolean", "object", "array"}:
-        prop["type"] = base_type
-      else:
-        prop["type"] = "string"
-    else:
-      prop["type"] = "string"
-    if "example" in arg:
-      prop["example"] = arg["example"]
-    props[str(name)] = prop
-    if arg.get("required"):
-      required.append(str(name))
-  schema: dict[str, Any] = {"type": "object", "properties": props}
-  if required:
-    schema["required"] = required
-  return schema
+    props: dict[str, Any] = {}
+    required: list[str] = []
+    for arg in card.get("args", []):
+        if not isinstance(arg, dict):
+            continue
+        name = arg.get("name")
+        if not name:
+            continue
+        prop: dict[str, Any] = {}
+        if "description" in arg:
+            prop["description"] = arg["description"]
+        type_hint = arg.get("typeHint")
+        if isinstance(type_hint, str):
+            base_type = type_hint.split(":", 1)[0]
+            if base_type in {
+                "string",
+                "number",
+                "integer",
+                "boolean",
+                "object",
+                "array",
+            }:
+                prop["type"] = base_type
+            else:
+                prop["type"] = "string"
+        else:
+            prop["type"] = "string"
+        if "example" in arg:
+            prop["example"] = arg["example"]
+        props[str(name)] = prop
+        if arg.get("required"):
+            required.append(str(name))
+    schema: dict[str, Any] = {"type": "object", "properties": props}
+    if required:
+        schema["required"] = required
+    return schema
 
 
 def _coerce_int(value: Any, default: int) -> int:
-  try:
-    if value is None:
-      return default
-    return int(value)
-  except (TypeError, ValueError):
-    return default
+    try:
+        if value is None:
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _default_routerd_cmd() -> str:
-  env = os.environ.get("ROUTERD")
-  if env:
-    return env
-  if shutil.which("tool-routerd"):
-    return "tool-routerd"
-  return "node packages/daemon/dist/cli.js"
+    env = os.environ.get("ROUTERD")
+    if env:
+        return env
+    if shutil.which("tool-routerd"):
+        return "tool-routerd"
+    return "node packages/daemon/dist/cli.js"
 
 
 def _parse_id_list(value: str | None) -> set[str]:
-  if not value:
-    return set()
-  return {item.strip() for item in value.split(",") if item.strip()}
+    if not value:
+        return set()
+    return {item.strip() for item in value.split(",") if item.strip()}
+
+
+def _parse_patterns(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [p.strip() for p in value.split(",") if p.strip()]
+
+
+def _resolve_always_load(patterns: list[str], router: Any) -> list[str]:
+    """Resolve glob patterns against the router's tool cache and return matching tool IDs."""
+    if not patterns:
+        return []
+    import fnmatch
+
+    all_tool_ids: list[str] = sorted(router._tool_cache.keys())
+    matched: list[str] = []
+    seen: set[str] = set()
+    for pattern in patterns:
+        for tool_id in all_tool_ids:
+            if tool_id in seen:
+                continue
+            if fnmatch.fnmatch(tool_id, pattern):
+                matched.append(tool_id)
+                seen.add(tool_id)
+    return matched
 
 
 def _load_hub() -> ToolRouterHub:
-  config_path = os.environ.get("OPENCODE_CONFIG", "~/.config/opencode/opencode.json")
-  include_disabled = os.environ.get("ROUTER_INCLUDE_DISABLED", "true").lower() not in {"0", "false", "no"}
-  ignore_ids = _parse_id_list(os.environ.get("ROUTER_IGNORE_IDS"))
-  router_id = os.environ.get("ROUTER_MCP_ID")
-  if router_id:
-    ignore_ids.add(router_id)
-  if not ignore_ids:
-    ignore_ids.add("router")
-  routerd_cmd = _default_routerd_cmd()
-  return ToolRouterHub.from_opencode_config(
-    config_path,
-    routerd_path=routerd_cmd,
-    auto_sync=True,
-    include_disabled=include_disabled,
-    ignore_ids=sorted(ignore_ids),
-  )
+    config_path = os.environ.get("OPENCODE_CONFIG", "~/.config/opencode/opencode.json")
+    include_disabled = os.environ.get(
+        "ROUTER_INCLUDE_DISABLED", "true"
+    ).lower() not in {"0", "false", "no"}
+    ignore_ids = _parse_id_list(os.environ.get("ROUTER_IGNORE_IDS"))
+    router_id = os.environ.get("ROUTER_MCP_ID")
+    if router_id:
+        ignore_ids.add(router_id)
+    if not ignore_ids:
+        ignore_ids.add("router")
+    routerd_cmd = _default_routerd_cmd()
+    return ToolRouterHub.from_opencode_config(
+        config_path,
+        routerd_path=routerd_cmd,
+        auto_sync=True,
+        include_disabled=include_disabled,
+        ignore_ids=sorted(ignore_ids),
+    )
 
 
 def main() -> int:
-  hub = _load_hub()
-  default_session = os.environ.get("ROUTER_SESSION_ID", "default")
-  server = RouterMcpServer(hub, default_session=default_session)
-  try:
-    server.serve()
-  finally:
-    hub.close()
-  return 0
+    hub = _load_hub()
+    default_session = os.environ.get("ROUTER_SESSION_ID", "default")
+    always_load = _parse_patterns(os.environ.get("ROUTER_ALWAYS_LOAD"))
+    server = RouterMcpServer(
+        hub, default_session=default_session, always_load_patterns=always_load
+    )
+    try:
+        server.serve()
+    finally:
+        hub.close()
+    return 0
 
 
 if __name__ == "__main__":
-  raise SystemExit(main())
+    raise SystemExit(main())

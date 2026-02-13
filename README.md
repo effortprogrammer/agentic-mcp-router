@@ -1,122 +1,39 @@
 # MCP Tool Router
 
-A TypeScript core + Python wrapper toolkit for routing Model Context Protocol (MCP) tools with
-BM25 search, working-set management, and deterministic result reduction.
+Smart tool routing for [OpenCode](https://opencode.ai). Reduces MCP tool context usage
+by **~99%** through BM25 search, working-set management, and on-demand tool loading.
 
-## Goals
+## The Problem
 
-- Fast tool search (BM25) with field weighting and post-score rules
-- Tool definition token budgeting within a per-turn budget
-- Working-set plug/unplug to stabilize multi-turn tool exposure
-- Deterministic tool-result reducers for long/noisy outputs
-- MCP-friendly integration: `tools/list` -> index -> expose only needed tools
+When you configure many MCP servers in OpenCode, every tool definition is sent to
+the LLM on every turn:
 
-## Non-goals (initial scope)
+- **50+ MCP tools** ≈ **~67k tokens** just for tool definitions
+- Leaves less context for your actual conversation and code
 
-- The TS core does not call LLM providers directly
-- No embedding or hybrid vector search (BM25 first)
-- The TS core does not manage MCP server connections (Python does)
+## The Solution
 
-## Minimum MCP tool fields
+The router sits between OpenCode and your MCP servers, exposing only **3 meta-tools**:
 
-To keep external MCP integrations low-friction, the router only requires MCP-standard fields:
+| Tool                  | Purpose                                            |
+| --------------------- | -------------------------------------------------- |
+| `router_select_tools` | Search for relevant tools by query (BM25 or regex) |
+| `router_call_tool`    | Call a tool by `{serverId}:{toolName}`             |
+| `router_tool_info`    | Inspect a tool's full schema before calling it     |
 
-- `name`
-- `description` (optional but recommended)
-- `inputSchema` (or `input_schema`)
-
-Everything else is optional. If `tags`/`synonyms`/`examples`/`authHint` are missing,
-the Python sync layer derives lightweight `tags` and `synonyms` from `name`/`title`/`description`
-so lexical search remains effective.
-
-## Architecture
-
-- **TypeScript core**: catalog, BM25, working set, result policy, safety hints
-- **Router daemon**: `tool-routerd` JSON-RPC over stdio (local IPC)
-- **Python wrapper**: MCP sync, LLM orchestration, daemon lifecycle
-
-## Quickstart
-
-First, install Node dependencies and build the TypeScript packages:
-
-```bash
-npm install
-npm run build
+```
+User: "Create a GitHub PR"
+  → OpenCode calls: router_select_tools({ query: "github pull request" })
+  → Router returns: [{ toolId: "github:create_pull_request", ... }]
+  → OpenCode calls: router_call_tool({ toolId: "github:create_pull_request", arguments: {...} })
 ```
 
-Then run the Python example (requires a real MCP stdio server):
+## Quick Start
 
-```bash
-python examples/quickstart.py
-```
+### 1. Configure your MCP servers
 
-```bash
-MCP_SERVER_CMD="your-mcp-server --stdio" python examples/quickstart.py
-```
-
-Set `ROUTERD` to override the daemon command, for example:
-
-```bash
-ROUTERD="tool-routerd" python examples/quickstart.py
-```
-
-## MCP server registry + hub
-
-Register many MCP servers in a single YAML file, then sync/route/call through a hub.
-
-Example registry (`examples/mcp-servers.yaml`):
-
-```yaml
-servers:
-  - id: slack
-    cmd: "npx @modelcontextprotocol/server-slack --stdio"
-    enabled: true
-  - id: github
-    cmd: "npx @modelcontextprotocol/server-github --stdio"
-    enabled: true
-```
-
-Usage:
-
-```python
-from mcp_tool_router import ToolRouterHub
-
-hub = ToolRouterHub.from_yaml("examples/mcp-servers.yaml")
-hub.sync_all()
-tool_ids = hub.select_tools("session-1", "summarize the latest report")
-result = hub.call_tool(tool_ids[0], {"query": "latest report"})
-```
-
-Notes:
-
-- Only `stdio` transport is supported for MCP servers.
-- `init` payloads are supported in YAML; set `initialized: true` to send the notification after `initialize`.
-
-### Use OpenCode config as registry
-
-If you already manage MCP servers in OpenCode, you can load them directly:
-
-```python
-from mcp_tool_router import ToolRouterHub
-
-hub = ToolRouterHub.from_opencode_config("~/.config/opencode/opencode.json")
-hub.sync_all()
-tool_ids = hub.select_tools("session-1", "summarize the latest report")
-```
-
-## Run the router as an MCP server (OpenCode)
-
-If you want OpenCode to connect to a single MCP server (the router) while still
-using your existing MCP servers, run the router MCP server and let it read the
-OpenCode config directly.
-
-Recommended flow:
-
-1. Keep your existing MCP servers in `~/.config/opencode/opencode.json`, but set
-   them to `enabled: false` so OpenCode does not connect to them directly.
-2. Add one MCP entry for the router that launches this repo.
-
-Example OpenCode config snippet:
+In `~/.config/opencode/opencode.json`, keep your existing MCP servers but set them
+to `enabled: false`. Add a single `router` entry:
 
 ```json
 {
@@ -129,115 +46,192 @@ Example OpenCode config snippet:
     "slack": {
       "type": "local",
       "enabled": false,
-      "command": ["node", "/path/to/slack-mcp/server.js"]
+      "command": ["npx", "@modelcontextprotocol/server-slack"]
+    },
+    "github": {
+      "type": "local",
+      "enabled": false,
+      "command": ["npx", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_TOKEN": "$GITHUB_TOKEN" }
     }
   }
 }
 ```
 
-The router MCP server exposes two tools:
-
-- `router_select_tools`: select relevant tool IDs for a query (returns tool defs)
-- `router_call_tool`: call a tool by `{serverId}:{toolName}`
-
-Environment variables:
-
-- `OPENCODE_CONFIG`: path to OpenCode config (default: `~/.config/opencode/opencode.json`)
-- `ROUTERD`: override the router daemon command
-- `ROUTER_IGNORE_IDS`: comma-separated MCP server IDs to ignore
-- `ROUTER_INCLUDE_DISABLED`: include disabled MCP entries (default: `true`). Set to `false` to skip them.
-- `ROUTER_MCP_ID`: MCP server ID for the router itself (auto-added to ignore list)
-- `ROUTER_SESSION_ID`: session identifier for working-set tracking (default: `default`)
-
-This keeps the MCP tool list tiny inside OpenCode while the router dynamically
-selects tools and proxies calls to the underlying servers.
-
-## Auto-update OpenCode config
-
-You can auto-install the router entry and disable other MCP servers with a helper:
+### 2. Install
 
 ```bash
-python -m mcp_tool_router.opencode_config
+pip install mcp-tool-router
 ```
 
-Options:
+Or install from source:
 
-- `--config /path/to/opencode.json`
-- `--router-id router`
-- `--router-command python3 -m mcp_tool_router.router_mcp_server`
-- `--keep-others` (do not disable other MCP entries)
-- `--dry-run` (print changes only)
+```bash
+git clone https://github.com/effortprogrammer/agentic-tool-router.git
+cd agentic-tool-router
+npm install && npm run build
+pip install -e python/
+```
 
-### CLI (npm) auto-install
+### 3. Auto-configure (optional)
 
-The CLI package exposes a Node helper:
+Automatically update your OpenCode config — disables existing MCP entries and adds
+the router:
 
 ```bash
 npx @mcp-tool-router/cli opencode install
 ```
 
-When installed globally, the CLI auto-updates OpenCode config if it exists:
+Or with the Python helper:
 
 ```bash
-npm i -g @mcp-tool-router/cli
+python -m mcp_tool_router.opencode_config
 ```
 
-If no config is found, it prints a friendly message. You can override the path
-with `OPENCODE_CONFIG`.
+Options: `--config`, `--router-id`, `--router-command`, `--keep-others`, `--dry-run`.
 
-## Compare against a real MCP server
+## Features
 
-Provide a real MCP stdio server and compare naive vs router selection:
+### Always-Load Tools
+
+Pin essential tools so they always appear in results without searching:
 
 ```bash
-MCP_SERVER_CMD="your-mcp-server --stdio" python examples/compare_mcp.py "summarize the latest report"
+export ROUTER_ALWAYS_LOAD="*:read,*:write,*:edit,slack:*"
 ```
 
-If your MCP server requires initialization, pass the JSON payload and (optionally) the initialized notification:
+Supports glob patterns:
 
-```bash
-MCP_INIT='{"protocolVersion":"...","capabilities":{}}' MCP_INITIALIZED=1 \
-  MCP_SERVER_CMD="your-mcp-server --stdio" python examples/compare_mcp.py "summarize the latest report"
+| Pattern           | Matches                            |
+| ----------------- | ---------------------------------- |
+| `*:read`          | `read` tool from any server        |
+| `slack:*`         | All tools from the `slack` server  |
+| `github:create_*` | All `create_*` tools from `github` |
+
+### Regex Search Mode
+
+When you know the exact tool name, use regex mode for precise matching:
+
+```
+router_select_tools({ query: "create_pull_request", mode: "regex" })
 ```
 
-## Sequence diagram
+| Mode             | Best For                                           |
+| ---------------- | -------------------------------------------------- |
+| `bm25` (default) | Natural language queries ("create a PR on GitHub") |
+| `regex`          | Exact or pattern-based tool name matching          |
+
+### Tool Introspection
+
+Inspect a tool's full JSON schema before calling it:
+
+```
+router_tool_info({ toolId: "github:create_pull_request" })
+→ { toolCard: {...}, rawDefinition: { name, description, inputSchema } }
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│  OpenCode                                       │
+│  (sees only 3 tools: select, call, info)        │
+└────────────────────┬────────────────────────────┘
+                     │ MCP stdio
+┌────────────────────▼────────────────────────────┐
+│  Router MCP Server (Python)                     │
+│  - Parses opencode.json for MCP server configs  │
+│  - Always-load pattern resolution               │
+│  - Tool call proxying                           │
+└────────────────────┬────────────────────────────┘
+                     │ JSON-RPC stdio
+┌────────────────────▼────────────────────────────┐
+│  Router Daemon (TypeScript)                     │
+│  - BM25 + Regex search engines                  │
+│  - Working-set management (pin, TTL, budget)    │
+│  - Result reduction (truncation, structured)    │
+└────────────────────┬────────────────────────────┘
+                     │
+        ┌────────────┼────────────┐
+   ┌────▼────┐  ┌────▼────┐  ┌───▼─────┐
+   │ Slack   │  │ GitHub  │  │ Other   │
+   │ MCP     │  │ MCP     │  │ MCP     │
+   └─────────┘  └─────────┘  └─────────┘
+```
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant Py as Python ToolRouter
-    participant D as tool_routerd
-    participant Core as ts_core
+    participant OC as OpenCode
+    participant R as Router MCP Server
+    participant D as Router Daemon
+    participant MCP as MCP Server
 
-    User->>Py: ToolRouter init
-    Py->>D: spawn on first RPC (JSON-RPC stdio)
-    User->>Py: sync_from_mcp(server, mcp_client)
-    Py->>Py: mcp_client.tools_list()
-    Py->>D: catalog.upsertTools(ToolCard[])
-    D->>Core: upsert tools + build docs
+    OC->>R: router_select_tools({ query: "..." })
+    R->>D: ws.update(query, budget, pin)
+    D->>D: BM25/Regex search + working-set
+    D-->>R: selectedToolIds
+    R-->>OC: tool IDs + definitions
 
-    User->>Py: select_tools(session, query)
-    Py->>D: ws.update(query, topK, budget)
-    D->>Core: BM25 search + working set update
-    D-->>Py: selectedToolIds
-
-    User->>Py: reduce_result(toolId, rawResult)
-    Py->>D: result.reduce(rawResult)
-    D->>Core: normalize + structured-first + truncate
-    D-->>Py: ReducedToolResult
+    OC->>R: router_call_tool({ toolId, arguments })
+    R->>MCP: tools/call(name, arguments)
+    MCP-->>R: result
+    R-->>OC: result
 ```
 
-## Repository layout
+## Configuration
+
+### Environment Variables
+
+| Variable                  | Default                            | Description                                           |
+| ------------------------- | ---------------------------------- | ----------------------------------------------------- |
+| `OPENCODE_CONFIG`         | `~/.config/opencode/opencode.json` | Path to OpenCode config                               |
+| `ROUTERD`                 | auto-detect                        | Override the router daemon command                    |
+| `ROUTER_ALWAYS_LOAD`      | _(empty)_                          | Comma-separated glob patterns for always-loaded tools |
+| `ROUTER_IGNORE_IDS`       | _(empty)_                          | Comma-separated MCP server IDs to skip                |
+| `ROUTER_INCLUDE_DISABLED` | `true`                             | Include disabled MCP entries from config              |
+| `ROUTER_MCP_ID`           | _(empty)_                          | Router's own MCP ID (auto-added to ignore list)       |
+| `ROUTER_SESSION_ID`       | `default`                          | Session ID for working-set tracking                   |
+
+### BM25 Search Weights
+
+The BM25 engine indexes 9 weighted fields per tool:
+
+| Field         | Weight | Description                  |
+| ------------- | ------ | ---------------------------- |
+| `name`        | 4.0    | Tool name (highest priority) |
+| `synonyms`    | 2.5    | Derived alternate names      |
+| `title`       | 2.0    | Human-readable title         |
+| `description` | 1.8    | Tool description             |
+| `argNames`    | 1.4    | Argument names               |
+| `argDescs`    | 1.2    | Argument descriptions        |
+| `tags`        | 1.2    | Derived tags                 |
+| `examples`    | 0.9    | Usage examples               |
+| `serverId`    | 0.2    | Server identifier            |
+
+Default BM25 parameters: `k1=1.2`, `b=0.75`. Additional boosts: exact match (+1.5),
+prefix match (+0.4), popularity bonus.
+
+### Minimum MCP Tool Fields
+
+The router only requires MCP-standard fields:
+
+- `name`
+- `description` (optional but recommended)
+- `inputSchema` (or `input_schema`)
+
+Missing `tags`, `synonyms`, and `examples` are derived automatically from the
+tool name and description.
+
+## Repository Layout
 
 ```
 packages/
-  core/      # BM25, tokenizer, working set, result policy
+  shared/    # Shared types (ToolCard, SearchQueryInput, etc.)
+  core/      # BM25, regex search, tokenizer, working set, result reducer
   daemon/    # tool-routerd JSON-RPC server
-  cli/       # `tool-router` CLI (opencode install, config helper)
-  shared/    # shared types and utilities
+  cli/       # CLI helper (opencode install)
 python/
-  mcp_tool_router/  # Python client wrapper
-  pyproject.toml
+  mcp_tool_router/  # Python MCP server + hub + registry
 examples/
 ```
 

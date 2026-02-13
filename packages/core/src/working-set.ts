@@ -1,6 +1,10 @@
 import type { WorkingSetManager } from "./core.js";
 import type { SearchEngine } from "./core.js";
-import type { WorkingSetState, WorkingSetUpdateInput, WorkingSetUpdateResult } from "@mcp-tool-router/shared";
+import type {
+  WorkingSetState,
+  WorkingSetUpdateInput,
+  WorkingSetUpdateResult,
+} from "@mcp-tool-router/shared";
 import type { ToolCard } from "@mcp-tool-router/shared";
 import type { InMemoryCatalog } from "./catalog.js";
 import { estimateTokensFromText } from "./utils.js";
@@ -19,7 +23,7 @@ const DEFAULT_WORKING_SET_OPTIONS: Required<Omit<WorkingSetOptions, "now">> = {
   defaultTokenCost: 120,
   defaultBudgetTokens: 0,
   defaultTopK: 20,
-  maxEntries: 0
+  maxEntries: 0,
 };
 
 function estimateToolTokens(tool: ToolCard): number {
@@ -30,11 +34,18 @@ function estimateToolTokens(tool: ToolCard): number {
     tool.description ?? "",
     tool.tags.join(" "),
     tool.synonyms.join(" "),
-    tool.args.map((arg) => `${arg.name} ${arg.description ?? ""} ${arg.typeHint ?? ""} ${arg.example ?? ""}`).join(" "),
-    tool.examples.map((example) => `${example.query} ${example.callHint ?? ""}`).join(" "),
+    tool.args
+      .map(
+        (arg) =>
+          `${arg.name} ${arg.description ?? ""} ${arg.typeHint ?? ""} ${arg.example ?? ""}`,
+      )
+      .join(" "),
+    tool.examples
+      .map((example) => `${example.query} ${example.callHint ?? ""}`)
+      .join(" "),
     tool.authHint.join(" "),
     tool.sideEffect ?? "",
-    tool.costHint ?? ""
+    tool.costHint ?? "",
   ];
 
   const estimate = estimateTokensFromText(parts.join(" "));
@@ -46,19 +57,25 @@ function cloneState(state: WorkingSetState): WorkingSetState {
     sessionId: state.sessionId,
     budgetTokens: state.budgetTokens,
     usedTokens: state.usedTokens,
-    entries: { ...state.entries }
+    entries: { ...state.entries },
   };
 }
 
 export class InMemoryWorkingSetManager implements WorkingSetManager {
   private sessions = new Map<string, WorkingSetState>();
-  private options: Required<Omit<WorkingSetOptions, "now">> & { now: () => number };
+  private options: Required<Omit<WorkingSetOptions, "now">> & {
+    now: () => number;
+  };
 
-  constructor(private catalog: InMemoryCatalog, private search: SearchEngine, options: WorkingSetOptions = {}) {
+  constructor(
+    private catalog: InMemoryCatalog,
+    private search: SearchEngine,
+    options: WorkingSetOptions = {},
+  ) {
     this.options = {
       ...DEFAULT_WORKING_SET_OPTIONS,
       ...options,
-      now: options.now ?? (() => Date.now())
+      now: options.now ?? (() => Date.now()),
     };
   }
 
@@ -69,7 +86,7 @@ export class InMemoryWorkingSetManager implements WorkingSetManager {
         sessionId,
         entries: {},
         budgetTokens: this.options.defaultBudgetTokens,
-        usedTokens: 0
+        usedTokens: 0,
       };
       this.sessions.set(sessionId, fresh);
       return cloneState(fresh);
@@ -99,7 +116,7 @@ export class InMemoryWorkingSetManager implements WorkingSetManager {
         lastUsedAt: 0,
         lastSelectedAt: now,
         ttlMs: this.options.defaultTtlMs || undefined,
-        tokenCost
+        tokenCost,
       };
       added.add(toolId);
     }
@@ -125,7 +142,12 @@ export class InMemoryWorkingSetManager implements WorkingSetManager {
     }
 
     const topK = input.topK ?? this.options.defaultTopK;
-    const hits = this.search.query({ sessionId: input.sessionId, query: input.query, topK }).hits;
+    const hits = this.search.query({
+      sessionId: input.sessionId,
+      query: input.query,
+      topK,
+      mode: input.mode,
+    }).hits;
 
     for (const hit of hits) {
       const toolId = hit.toolId;
@@ -143,7 +165,7 @@ export class InMemoryWorkingSetManager implements WorkingSetManager {
         lastSelectedAt: now,
         ttlMs: this.options.defaultTtlMs || undefined,
         tokenCost,
-        scoreHint: hit.score
+        scoreHint: hit.score,
       };
       added.add(toolId);
     }
@@ -166,12 +188,15 @@ export class InMemoryWorkingSetManager implements WorkingSetManager {
       addedToolIds: Array.from(added).sort(),
       removedToolIds: Array.from(removed).sort(),
       budgetUsed: state.usedTokens,
-      budgetTotal: state.budgetTokens
+      budgetTotal: state.budgetTokens,
     };
   }
 
   markUsed(sessionId: string, toolId: string): void {
-    const state = this.ensureSession(sessionId, this.options.defaultBudgetTokens);
+    const state = this.ensureSession(
+      sessionId,
+      this.options.defaultBudgetTokens,
+    );
     const now = this.options.now();
     const entry = state.entries[toolId];
     if (entry) {
@@ -186,7 +211,7 @@ export class InMemoryWorkingSetManager implements WorkingSetManager {
       lastUsedAt: now,
       lastSelectedAt: now,
       ttlMs: this.options.defaultTtlMs || undefined,
-      tokenCost
+      tokenCost,
     };
   }
 
@@ -194,7 +219,10 @@ export class InMemoryWorkingSetManager implements WorkingSetManager {
     this.sessions.delete(sessionId);
   }
 
-  private ensureSession(sessionId: string, budgetTokens: number): WorkingSetState {
+  private ensureSession(
+    sessionId: string,
+    budgetTokens: number,
+  ): WorkingSetState {
     const state = this.sessions.get(sessionId);
     if (state) {
       state.budgetTokens = budgetTokens;
@@ -204,7 +232,7 @@ export class InMemoryWorkingSetManager implements WorkingSetManager {
       sessionId,
       entries: {},
       budgetTokens,
-      usedTokens: 0
+      usedTokens: 0,
     };
     this.sessions.set(sessionId, fresh);
     return fresh;
@@ -219,7 +247,10 @@ export class InMemoryWorkingSetManager implements WorkingSetManager {
   }
 
   private computeUsedTokens(state: WorkingSetState): number {
-    return Object.values(state.entries).reduce((sum, entry) => sum + entry.tokenCost, 0);
+    return Object.values(state.entries).reduce(
+      (sum, entry) => sum + entry.tokenCost,
+      0,
+    );
   }
 
   private enforceBudget(state: WorkingSetState, removed: Set<string>): void {
@@ -229,7 +260,9 @@ export class InMemoryWorkingSetManager implements WorkingSetManager {
       return;
     }
 
-    const candidates = Object.values(state.entries).filter((entry) => !entry.pinned);
+    const candidates = Object.values(state.entries).filter(
+      (entry) => !entry.pinned,
+    );
     candidates.sort((a, b) => {
       if (a.lastSelectedAt !== b.lastSelectedAt) {
         return a.lastSelectedAt - b.lastSelectedAt;
@@ -257,7 +290,10 @@ export class InMemoryWorkingSetManager implements WorkingSetManager {
     state.usedTokens = used;
   }
 
-  private enforceMaxEntries(state: WorkingSetState, removed: Set<string>): void {
+  private enforceMaxEntries(
+    state: WorkingSetState,
+    removed: Set<string>,
+  ): void {
     const maxEntries = this.options.maxEntries;
     if (maxEntries <= 0) {
       return;
@@ -284,7 +320,10 @@ export class InMemoryWorkingSetManager implements WorkingSetManager {
       return a.toolId.localeCompare(b.toolId);
     });
 
-    while (Object.keys(state.entries).length > maxEntries && candidates.length > 0) {
+    while (
+      Object.keys(state.entries).length > maxEntries &&
+      candidates.length > 0
+    ) {
       const entry = candidates.shift();
       if (!entry) {
         break;

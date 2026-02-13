@@ -1,6 +1,7 @@
 export * from "./core.js";
 export * from "./catalog.js";
 export * from "./bm25.js";
+export * from "./regex.js";
 export * from "./tokenizer.js";
 export * from "./working-set.js";
 export * from "./result-reducer.js";
