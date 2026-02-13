@@ -35,3 +35,11 @@ OPENCODE_CONFIG="~/.config/opencode/opencode.json" \
 
 Then register only the router MCP entry in OpenCode, and keep your real MCP
 servers disabled so the router can read them directly.
+
+## Auto-config helper
+
+To automatically add the router entry (and disable other MCP servers):
+
+```bash
+python -m mcp_tool_router.opencode_config
+```

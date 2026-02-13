@@ -150,6 +150,22 @@ Environment variables:
 This keeps the MCP tool list tiny inside OpenCode while the router dynamically
 selects tools and proxies calls to the underlying servers.
 
+## Auto-update OpenCode config
+
+You can auto-install the router entry and disable other MCP servers with a helper:
+
+```bash
+python -m mcp_tool_router.opencode_config
+```
+
+Options:
+
+- `--config /path/to/opencode.json`
+- `--router-id router`
+- `--router-command python3 -m mcp_tool_router.router_mcp_server`
+- `--keep-others` (do not disable other MCP entries)
+- `--dry-run` (print changes only)
+
 ## Compare against a real MCP server
 
 Provide a real MCP stdio server and compare naive vs router selection:
