@@ -203,14 +203,6 @@ class RouterMcpServer:
             budget_tokens=budget_tokens,
             mode=mode,
         )
-
-        tool_ids = self._hub.select_tools(
-            session_id,
-            query,
-            top_k=top_k,
-            budget_tokens=budget_tokens,
-            mode=mode,
-        )
         result: dict[str, Any] = {"selectedToolIds": tool_ids}
         if include_tools:
             result["tools"] = self._format_tools(tool_ids)

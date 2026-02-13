@@ -61,13 +61,13 @@ function opencodeInstall(args: string[]): void {
   routerEntry.enabled = true;
   routerEntry.command = routerCommand;
 
-  const pythonPath = resolvePythonPath();
-  if (pythonPath) {
+  const envOverrides = resolveEnvOverrides();
+  if (Object.keys(envOverrides).length > 0) {
     const env =
       typeof routerEntry.env === "object" && routerEntry.env !== null
         ? { ...(routerEntry.env as JsonObject) }
         : {};
-    env.PYTHONPATH = pythonPath;
+    Object.assign(env, envOverrides);
     routerEntry.env = env;
   }
 
@@ -244,42 +244,55 @@ function printJson(payload: JsonObject): void {
   console.log(JSON.stringify(payload, null, 2));
 }
 
-/**
- * Resolve the PYTHONPATH needed for the router MCP server.
- *
- * 1. If `import mcp_tool_router` succeeds under the current Python, the
- *    package is already installed (via pip/uv) — no PYTHONPATH needed.
- * 2. Otherwise, walk up from *this* JS file looking for a sibling `python/`
- *    directory that contains `mcp_tool_router/`.  This covers both the
- *    monorepo layout (`<root>/packages/cli/dist/index.js` → `<root>/python`)
- *    and editable / git-clone installs.
- * 3. If nothing is found, return null and let the user handle it.
- */
-function resolvePythonPath(): string | null {
-  const python = findPython();
-  if (python) {
-    const check = spawnSync(python, ["-c", "import mcp_tool_router"], {
-      stdio: "pipe",
-    });
-    if (check.status === 0) {
-      return null;
+function resolveEnvOverrides(): Record<string, string> {
+  const env: Record<string, string> = {};
+  const monorepoRoot = findMonorepoRoot();
+
+  if (monorepoRoot) {
+    const pythonDir = path.join(monorepoRoot, "python");
+    if (
+      fs.existsSync(pythonDir) &&
+      fs.existsSync(path.join(pythonDir, "mcp_tool_router"))
+    ) {
+      const python = findPython();
+      const alreadyImportable =
+        python !== null &&
+        spawnSync(python, ["-c", "import mcp_tool_router"], {
+          stdio: "pipe",
+        }).status === 0;
+      if (!alreadyImportable) {
+        env.PYTHONPATH = pythonDir;
+      }
+    }
+
+    const daemonCli = path.join(
+      monorepoRoot,
+      "packages",
+      "daemon",
+      "dist",
+      "cli.js",
+    );
+    if (fs.existsSync(daemonCli)) {
+      env.ROUTERD = `node ${daemonCli}`;
     }
   }
 
+  return env;
+}
+
+function findMonorepoRoot(): string | null {
   const thisDir = path.dirname(fileURLToPath(import.meta.url));
   let dir = thisDir;
   const root = path.parse(dir).root;
   for (let i = 0; i < 8 && dir !== root; i++) {
     dir = path.dirname(dir);
-    const candidate = path.join(dir, "python");
     if (
-      fs.existsSync(candidate) &&
-      fs.existsSync(path.join(candidate, "mcp_tool_router"))
+      fs.existsSync(path.join(dir, "python", "mcp_tool_router")) &&
+      fs.existsSync(path.join(dir, "packages", "daemon"))
     ) {
-      return candidate;
+      return dir;
     }
   }
-
   return null;
 }
 
