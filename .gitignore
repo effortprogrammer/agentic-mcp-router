@@ -30,4 +30,11 @@ coverage/
 # Env
 .env
 .env.*
-docs/
+
+# Working artifacts
+.flock/
+.sisyphus/
+.maestro-traces/
+
+# Session docs
+*.md

@@ -30,10 +30,52 @@ User: "Create a GitHub PR"
 
 ## Quick Start
 
-### 1. Configure your MCP servers
+**3 commands and you're done:**
 
-In `~/.config/opencode/opencode.json`, keep your existing MCP servers but set them
-to `enabled: false`. Add a single `router` entry:
+```bash
+# 1. Install and configure router (auto-updates your OpenCode config)
+npx @mcp-tool-router/cli opencode install
+
+# 2. Start OpenCode — it auto-loads the router
+# (no manual config needed!)
+
+# 3. Verify it works
+# Open Settings → MCP Servers → should see "router" with 3 tools
+```
+
+That's it! The router automatically:
+- ✅ Disables your existing MCP servers
+- ✅ Configures itself as single MCP entry
+- ✅ Starts managing all your tools via smart BM25 search
+
+---
+
+### Adding New MCP Servers
+
+After initial install, adding a new MCP server is simple:
+
+```bash
+# 1. Edit your OpenCode config
+# ~/.config/opencode/opencode.json
+{
+  "mcp": {
+    "github": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "@modelcontextprotocol/server-github"]
+    }
+  }
+}
+
+# 2. Restart OpenCode
+# The router reloads automatically on OpenCode restart
+```
+
+That's it! The router picks up the new server on restart.
+
+### Manual Config (optional)
+
+If you prefer to configure manually or need custom settings, edit `~/.config/opencode/opencode.json`:
 
 ```json
 {
@@ -45,8 +87,7 @@ to `enabled: false`. Add a single `router` entry:
     },
     "slack": {
       "type": "local",
-      "enabled": false,
-      "command": ["npx", "@modelcontextprotocol/server-slack"]
+      "enabled": false
     },
     "github": {
       "type": "local",
@@ -58,37 +99,29 @@ to `enabled: false`. Add a single `router` entry:
 }
 ```
 
-### 2. Install
-
-```bash
-pip install mcp-tool-router
-```
-
-Or install from source:
+### Install from Source
 
 ```bash
 git clone https://github.com/effortprogrammer/agentic-tool-router.git
 cd agentic-tool-router
 npm install && npm run build
 pip install -e python/
-```
-
-### 3. Auto-configure (optional)
-
-Automatically update your OpenCode config — disables existing MCP entries and adds
-the router:
-
-```bash
 npx @mcp-tool-router/cli opencode install
 ```
 
-Or with the Python helper:
+### Auto-configure Options
 
 ```bash
-python -m mcp_tool_router.opencode_config
+npx @mcp-tool-router/cli opencode install --help
 ```
 
-Options: `--config`, `--router-id`, `--router-command`, `--keep-others`, `--dry-run`.
+| Option | Description |
+|---------|-------------|
+| `--config <path>` | Path to OpenCode config (default: `~/.config/opencode/opencode.json`) |
+| `--router-id <name>` | Router MCP server ID (default: `router`) |
+| `--router-command <cmd>` | Override router daemon command |
+| `--keep-others` | Don't disable existing MCP servers |
+| `--dry-run` | Show changes without applying |
 
 ## Features
 
