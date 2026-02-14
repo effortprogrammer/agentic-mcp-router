@@ -1,7 +1,7 @@
 # MCP Tool Router
 
-Smart tool routing for [OpenCode](https://opencode.ai). Reduces MCP tool context usage
-by **~99%** through BM25 search, working-set management, and on-demand tool loading.
+ Smart tool routing for [OpenCode](https://opencode.ai). Reduces MCP tool context usage
+ through BM25 search, working-set management, and on-demand tool loading.
 
 ## The Problem
 
@@ -51,21 +51,6 @@ That's it! The router automatically:
 - ✅ Disables your existing MCP servers
 - ✅ Configures itself as single MCP entry
 - ✅ Starts managing all your tools via smart BM25 search
-
----
-
-### Diagnose Search Quality
-
-To measure BM25 search quality with real tool data:
-
-```bash
-npx tsx scripts/bm25-diagnostic.ts
-```
-
-This tests:
-- Tokenization accuracy
-- Search ranking across 25+ test queries
-- Stemming, stopword, and synonym analysis
 
 ---
 
