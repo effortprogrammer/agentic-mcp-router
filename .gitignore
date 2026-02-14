@@ -1,0 +1,40 @@
+node_modules/
+.DS_Store
+*.log
+npm-debug.log*
+.yarn/
+.pnpm-store/
+
+# Build
+/dist/
+/build/
+/out/
+/packages/**/dist/
+
+# TypeScript
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.venv*/
+
+# IDE
+.vscode/
+.idea/
+
+# Coverage
+coverage/
+
+# Env
+.env
+.env.*
+
+# Working artifacts
+.flock/
+.sisyphus/
+.maestro-traces/
+
+# Session docs
+*.md
