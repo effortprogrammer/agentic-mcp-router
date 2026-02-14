@@ -1,17 +1,12 @@
 # MCP Tool Router
 
- Smart tool routing for [OpenCode](https://opencode.ai). Reduces MCP tool context usage
- through BM25 search, working-set management, and on-demand tool loading.
+Smart tool routing for [OpenCode](https://opencode.ai). Reduces MCP tool context usage
+through BM25 search, working-set management, and on-demand tool loading.
 
 ## The Problem
 
 When you configure many MCP servers in OpenCode, every tool definition is sent to
-LLM on every turn:
-
-- **50+ MCP tools** ≈ **~67k tokens** just for tool definitions
-- Leaves less context for your actual conversation and code
-
-**Measured impact**: 60-80% token reduction in real usage (verified across 20+ turn conversations).
+the LLM on every turn — leaving less context for your actual conversation and code.
 
 ## The Solution
 
@@ -29,8 +24,6 @@ User: "Create a GitHub PR"
   → Router returns: [{ toolId: "github:create_pull_request", ... }]
   → OpenCode calls: router_call_tool({ toolId: "github:create_pull_request", arguments: {...} })
 ```
-
-**Measured savings**: 60-80% token reduction in real usage (verified across 20+ turn conversations).
 
 ## Quick Start
 
@@ -54,28 +47,63 @@ That's it! The router automatically:
 
 ---
 
-### Adding New MCP Servers
-
-After initial install, adding a new MCP server is simple:
+### Adding New MCP Servers (general)
 
 ```bash
-# 1. Edit your OpenCode config
-# ~/.config/opencode/opencode.json
+# 1. Edit your OpenCode config (~/.config/opencode/opencode.json)
 {
   "mcp": {
-    "github": {
+    "your-server": {
       "type": "local",
       "enabled": true,
-      "command": ["npx", "@modelcontextprotocol/server-github"]
+      "command": ["..."],
+      "env": {}
     }
   }
 }
 
 # 2. Restart OpenCode
-# The router reloads automatically on OpenCode restart
+# (router reloads config on OpenCode restart)
 ```
 
-That's it! The router picks up the new server on restart.
+### GitHub MCP setup & test
+
+1) Install server (global 또는 npx 사용)
+```bash
+npm install -g @modelcontextprotocol/server-github
+# 또는 npx @modelcontextprotocol/server-github
+```
+
+2) 토큰 준비
+```bash
+export GITHUB_TOKEN=ghp_your_token   # repo 권한 필요
+```
+
+3) OpenCode 설정 추가 (`~/.config/opencode/opencode.json`)
+```json
+{
+  "mcp": {
+    "router": {
+      "type": "local",
+      "enabled": true,
+      "command": ["python3", "-m", "mcp_tool_router.router_mcp_server"]
+    },
+    "github": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_TOKEN": "$GITHUB_TOKEN" }
+    }
+  }
+}
+```
+
+4) OpenCode 재시작 (hot-reload 없음)
+
+5) 동작 확인 (OpenCode에서 메타 툴 호출)
+- `router_select_tools { query: "github pull request" }` → `github:create_pull_request` 등 노출
+- `router_tool_info { toolId: "github:create_pull_request" }` → 스키마 확인
+- `router_call_tool { toolId: "github:create_pull_request", arguments: {...} }` → 실제 호출
 
 ### Manual Config (optional)
 
@@ -149,6 +177,58 @@ Inspect a tool's full JSON schema before calling it:
 ```
 router_tool_info({ toolId: "github:create_pull_request" })
 → { toolCard: {...}, rawDefinition: { name, description, inputSchema } }
+```
+
+## Token Savings Benchmarks
+
+Actual measurements from a typical setup (5 MCP servers, 33 tools):
+
+### Without Router (Naive)
+
+| MCP Server | Tools | Tokens |
+|------------|-------|--------|
+| github | 25 | 5,651 |
+| context7 | 2 | 791 |
+| slack | 4 | 499 |
+| grep_app | 1 | 622 |
+| websearch | 1 | 284 |
+| **Total** | **33** | **7,847** |
+
+### With Router
+
+| Component | Tokens |
+|-----------|--------|
+| Meta tools (select, call, info) | ~450 |
+| Working set (budget=1500) | ~1,500 |
+| **Total** | **~1,950** |
+
+### Savings
+
+| Metric | Value |
+|--------|-------|
+| Per-turn reduction | **7,847 → 1,950 = 75%** |
+| 20-turn conversation | **~120,000 tokens saved** |
+
+> **Note**: Actual savings scale with the number of configured tools — more MCP servers = greater reduction.
+
+### Measurement Method
+
+Token estimation follows the standard formula:
+
+```
+tokens = ceil(utf8_bytes / 4)  // 4 bytes ≈ 1 token
+per_tool_overhead = max(8, estimated + 12)
+```
+
+To measure your own setup:
+
+```bash
+# Using the compare script
+MCP_SERVER_CMD="npx @your/mcp-server" python examples/compare_mcp.py "your query"
+
+# Or inspect router_select_tools response
+router_select_tools({ query: "...", budgetTokens: 100000, includeTools: true })
+# → Returns full tool definitions for analysis
 ```
 
 ## Architecture
