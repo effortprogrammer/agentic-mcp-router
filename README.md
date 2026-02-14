@@ -1,7 +1,7 @@
 # MCP Tool Router
 
- Smart tool routing for [OpenCode](https://opencode.ai). Reduces MCP tool context usage
- through BM25 search, working-set management, and on-demand tool loading.
+Smart tool routing for [OpenCode](https://opencode.ai). Reduces MCP tool context usage
+through BM25 search, working-set management, and on-demand tool loading.
 
 ## The Problem
 
@@ -11,7 +11,7 @@ LLM on every turn:
 - **50+ MCP tools** ≈ **~67k tokens** just for tool definitions
 - Leaves less context for your actual conversation and code
 
-**Measured impact**: 60-80% token reduction in real usage (verified across 20+ turn conversations).
+Measured impact: 60-80% token reduction in real usage (verified across 20+ turn conversations).
 
 ## The Solution
 
@@ -30,7 +30,7 @@ User: "Create a GitHub PR"
   → OpenCode calls: router_call_tool({ toolId: "github:create_pull_request", arguments: {...} })
 ```
 
-**Measured savings**: 60-80% token reduction in real usage (verified across 20+ turn conversations).
+Measured savings: 60-80% token reduction in real usage (verified across 20+ turn conversations).
 
 ## Quick Start
 
@@ -54,28 +54,63 @@ That's it! The router automatically:
 
 ---
 
-### Adding New MCP Servers
-
-After initial install, adding a new MCP server is simple:
+### Adding New MCP Servers (general)
 
 ```bash
-# 1. Edit your OpenCode config
-# ~/.config/opencode/opencode.json
+# 1. Edit your OpenCode config (~/.config/opencode/opencode.json)
 {
   "mcp": {
-    "github": {
+    "your-server": {
       "type": "local",
       "enabled": true,
-      "command": ["npx", "@modelcontextprotocol/server-github"]
+      "command": ["..."],
+      "env": {}
     }
   }
 }
 
 # 2. Restart OpenCode
-# The router reloads automatically on OpenCode restart
+# (router reloads config on OpenCode restart)
 ```
 
-That's it! The router picks up the new server on restart.
+### GitHub MCP setup & test
+
+1) Install server (global 또는 npx 사용)
+```bash
+npm install -g @modelcontextprotocol/server-github
+# 또는 npx @modelcontextprotocol/server-github
+```
+
+2) 토큰 준비
+```bash
+export GITHUB_TOKEN=ghp_your_token   # repo 권한 필요
+```
+
+3) OpenCode 설정 추가 (`~/.config/opencode/opencode.json`)
+```json
+{
+  "mcp": {
+    "router": {
+      "type": "local",
+      "enabled": true,
+      "command": ["python3", "-m", "mcp_tool_router.router_mcp_server"]
+    },
+    "github": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_TOKEN": "$GITHUB_TOKEN" }
+    }
+  }
+}
+```
+
+4) OpenCode 재시작 (hot-reload 없음)
+
+5) 동작 확인 (OpenCode에서 메타 툴 호출)
+- `router_select_tools { query: "github pull request" }` → `github:create_pull_request` 등 노출
+- `router_tool_info { toolId: "github:create_pull_request" }` → 스키마 확인
+- `router_call_tool { toolId: "github:create_pull_request", arguments: {...} }` → 실제 호출
 
 ### Manual Config (optional)
 
