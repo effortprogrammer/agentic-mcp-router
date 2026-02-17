@@ -321,7 +321,7 @@ function resolveRouterCommand(
   const defaultCommand = ["python3", "-m", ROUTER_MODULE];
 
   if (monorepoRoot) {
-    const pythonDir = path.join(monorepoRoot, "python");
+    const pythonDir = path.join(monorepoRoot, "router-runtime");
     if (
       fs.existsSync(pythonDir) &&
       fs.existsSync(path.join(pythonDir, "mcp_tool_router"))
@@ -403,7 +403,7 @@ function findMonorepoRoot(): string | null {
   for (let i = 0; i < 8 && dir !== root; i++) {
     dir = path.dirname(dir);
     if (
-      fs.existsSync(path.join(dir, "python", "mcp_tool_router")) &&
+      fs.existsSync(path.join(dir, "router-runtime", "mcp_tool_router")) &&
       fs.existsSync(path.join(dir, "packages", "daemon"))
     ) {
       return dir;

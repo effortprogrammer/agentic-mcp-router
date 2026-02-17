@@ -221,7 +221,7 @@ def _resolve_router_command() -> tuple[list[str], dict[str, str]]:
     monorepo_root = _find_monorepo_root()
 
     if monorepo_root is not None:
-        python_dir = monorepo_root / "python"
+        python_dir = monorepo_root / "router-runtime"
         if python_dir.is_dir() and (python_dir / "mcp_tool_router").is_dir():
             env["PYTHONPATH"] = str(python_dir)
 
@@ -265,7 +265,7 @@ def _can_import(python: str, pkg: str, env: dict[str, str]) -> bool:
 def _find_monorepo_root() -> Path | None:
     current = Path(__file__).resolve().parent
     for _ in range(8):
-        if (current / "python" / "mcp_tool_router").is_dir() and (
+        if (current / "router-runtime" / "mcp_tool_router").is_dir() and (
             current / "packages" / "daemon"
         ).is_dir():
             return current

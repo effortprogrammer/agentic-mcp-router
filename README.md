@@ -51,7 +51,7 @@ That's it! The router automatically:
 git clone https://github.com/effortprogrammer/agentic-tool-router.git
 cd agentic-tool-router
 npm install && npm run build
-pip install -e python/
+pip install -e router-runtime/
 npx @mcp-tool-router/cli opencode install
 ```
 
