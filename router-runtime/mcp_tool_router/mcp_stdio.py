@@ -10,6 +10,9 @@ import threading
 from typing import Any
 
 
+_DEFAULT_TIMEOUT: float = 120.0
+
+
 @dataclass
 class StdioMcpConfig:
     server_cmd: str
@@ -19,7 +22,13 @@ class StdioMcpConfig:
 
 
 class _StdioJsonRpcClient:
-    def __init__(self, argv: list[str], env: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        argv: list[str],
+        env: dict[str, str] | None = None,
+        timeout: float = _DEFAULT_TIMEOUT,
+    ) -> None:
+        self._timeout = timeout
         proc_env: dict[str, str] | None = None
         if env:
             proc_env = {**os.environ, **env}
@@ -89,7 +98,12 @@ class _StdioJsonRpcClient:
             return request_id, pending
 
     def _await_response(self, pending: queue.Queue[dict]) -> dict:
-        return pending.get()
+        try:
+            return pending.get(timeout=self._timeout)
+        except queue.Empty:
+            raise RuntimeError(
+                f"MCP server did not respond within {self._timeout}s"
+            ) from None
 
     def _read_loop(self) -> None:
         assert self._proc.stdout is not None

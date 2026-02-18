@@ -10,6 +10,9 @@ import threading
 from typing import Any, Iterable
 
 
+_ROUTERD_TIMEOUT: float = 30.0
+
+
 @dataclass
 class RouterConfig:
     routerd_path: str | None = None
@@ -17,7 +20,8 @@ class RouterConfig:
 
 
 class _StdioJsonRpcClient:
-    def __init__(self, argv: list[str]) -> None:
+    def __init__(self, argv: list[str], timeout: float = _ROUTERD_TIMEOUT) -> None:
+        self._timeout = timeout
         self._proc = subprocess.Popen(
             argv,
             stdin=subprocess.PIPE,
@@ -72,7 +76,12 @@ class _StdioJsonRpcClient:
             return request_id, pending
 
     def _await_response(self, pending: queue.Queue[dict]) -> dict:
-        return pending.get()
+        try:
+            return pending.get(timeout=self._timeout)
+        except queue.Empty:
+            raise RuntimeError(
+                f"routerd did not respond within {self._timeout}s"
+            ) from None
 
     def _read_loop(self) -> None:
         assert self._proc.stdout is not None
