@@ -37,7 +37,8 @@ npx @mcpflow/cli opencode install
 # (no manual config needed!)
 
 # 3. Verify it works
-# Open Settings → MCP Servers → should see "router" with 3 tools
+opencode mcp list
+# Should see "router" with ✓ connected status
 ```
 
 That's it! mcpflow automatically:
