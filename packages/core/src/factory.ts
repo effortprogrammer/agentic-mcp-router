@@ -12,7 +12,7 @@ import type { ResultReducerOptions } from "./result-reducer.js";
 import type {
   SearchQueryInput,
   SearchQueryResult,
-} from "@mcp-tool-router/shared";
+} from "@mcpflow/shared";
 
 export interface RouterCoreOptions {
   tokenizer?: TokenizerOptions;

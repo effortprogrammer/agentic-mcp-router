@@ -5,9 +5,9 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 
-const PIP_PACKAGE = "mcp-tool-router";
+const PIP_PACKAGE = "mcpflow";
 const PIP_GIT_URL =
-  "git+https://github.com/effortprogrammer/agentic-tool-router.git#subdirectory=python";
+  "git+https://github.com/effortprogrammer/mcpflow.git#subdirectory=python";
 
 function main(): void {
   ensurePythonPackage();
@@ -15,7 +15,7 @@ function main(): void {
   const configPath = resolveConfigPath();
   if (!fs.existsSync(configPath)) {
     console.warn(
-      `[mcp-tool-router] OpenCode config not found at ${configPath}. ` +
+      `[mcpflow] OpenCode config not found at ${configPath}. ` +
         "Install OpenCode first or set OPENCODE_CONFIG to the correct path.",
     );
     return;
@@ -41,7 +41,7 @@ function ensurePythonPackage(): void {
   const python = findPython();
   if (!python) {
     console.warn(
-      "[mcp-tool-router] python3 not found. Install Python 3.10+ and run:\n" +
+      "[mcpflow] python3 not found. Install Python 3.10+ and run:\n" +
         `  pip install ${PIP_PACKAGE}`,
     );
     return;
@@ -51,7 +51,7 @@ function ensurePythonPackage(): void {
     return;
   }
 
-  console.log("[mcp-tool-router] Installing Python package...");
+  console.log("[mcpflow] Installing Python package...");
 
   if (tryPipInstall(python, [PIP_PACKAGE])) {
     return;
@@ -62,7 +62,7 @@ function ensurePythonPackage(): void {
   }
 
   console.warn(
-    "[mcp-tool-router] Could not auto-install the Python package. Install manually:\n" +
+    "[mcpflow] Could not auto-install the Python package. Install manually:\n" +
       `  pip install ${PIP_PACKAGE}\n` +
       "  # or\n" +
       `  pip install "${PIP_GIT_URL}"`,
@@ -94,7 +94,7 @@ function tryPipInstall(python: string, args: string[]): boolean {
   for (const [cmd, rest] of strategies) {
     const r = spawnSync(cmd, rest, { stdio: "pipe" });
     if (r.status === 0) {
-      console.log(`[mcp-tool-router] Python package installed via ${cmd}.`);
+      console.log(`[mcpflow] Python package installed via ${cmd}.`);
       return true;
     }
   }

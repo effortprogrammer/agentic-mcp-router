@@ -48,7 +48,7 @@ If you prefer to configure manually or need custom settings, edit `~/.config/ope
 ## Auto-configure Options
 
 ```bash
-npx @mcp-tool-router/cli opencode install --help
+npx @mcpflow/cli opencode install --help
 ```
 
 | Option | Description |

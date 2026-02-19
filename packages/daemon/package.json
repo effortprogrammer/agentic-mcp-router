@@ -1,9 +1,9 @@
 {
-  "name": "@mcp-tool-router/daemon",
+  "name": "@mcpflow/daemon",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "tool-routerd": "dist/cli.js"
+    "mcpflowd": "dist/cli.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,7 +15,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@mcp-tool-router/core": "0.1.0",
-    "@mcp-tool-router/shared": "0.1.0"
+    "@mcpflow/core": "0.1.0",
+    "@mcpflow/shared": "0.1.0"
   }
 }

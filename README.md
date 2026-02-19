@@ -1,4 +1,4 @@
-# MCP Tool Router
+# mcpflow
 
 Smart tool routing for [OpenCode](https://opencode.ai). Reduces MCP tool context usage
 through smart search, working-set management, and on-demand tool loading.
@@ -10,7 +10,7 @@ the LLM on every turn — leaving less context for your actual conversation and 
 
 ## The Solution
 
-The router sits between OpenCode and your MCP servers, exposing only **3 meta-tools**:
+mcpflow sits between OpenCode and your MCP servers, exposing only **3 meta-tools**:
 
 | Tool                  | Purpose                                            |
 | --------------------- | -------------------------------------------------- |
@@ -30,17 +30,17 @@ User: "Create a GitHub PR"
 **3 commands and you're done:**
 
 ```bash
-# 1. Install and configure router (auto-updates your OpenCode config)
-npx @mcp-tool-router/cli opencode install
+# 1. Install and configure mcpflow (auto-updates your OpenCode config)
+npx @mcpflow/cli opencode install
 
-# 2. Start OpenCode — it auto-loads the router
+# 2. Start OpenCode — it auto-loads mcpflow
 # (no manual config needed!)
 
 # 3. Verify it works
 # Open Settings → MCP Servers → should see "router" with 3 tools
 ```
 
-That's it! The router automatically:
+That's it! mcpflow automatically:
 - ✅ Disables your existing MCP servers
 - ✅ Configures itself as single MCP entry
 - ✅ Starts managing all your tools via smart search
@@ -48,11 +48,11 @@ That's it! The router automatically:
 ### Install from Source
 
 ```bash
-git clone https://github.com/effortprogrammer/agentic-tool-router.git
-cd agentic-tool-router
+git clone https://github.com/effortprogrammer/mcpflow.git
+cd mcpflow
 npm install && npm run build
 pip install -e router-runtime/
-npx @mcp-tool-router/cli opencode install
+npx @mcpflow/cli opencode install
 ```
 
 For manual configuration and advanced options, see the [Configuration Guide](docs/configuration.md).

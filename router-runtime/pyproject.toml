@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mcp-tool-router"
+name = "mcpflow"
 version = "0.1.0"
-description = "Python wrapper for the MCP tool router daemon"
+description = "Python wrapper for mcpflow daemon"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-  { name = "MCP Tool Router contributors" }
+  { name = "mcpflow contributors" }
 ]
 keywords = ["mcp", "tools", "router", "bm25"]
 classifiers = [

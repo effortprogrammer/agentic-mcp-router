@@ -4,8 +4,8 @@ import type {
   WorkingSetState,
   WorkingSetUpdateInput,
   WorkingSetUpdateResult,
-} from "@mcp-tool-router/shared";
-import type { ToolCard } from "@mcp-tool-router/shared";
+} from "@mcpflow/shared";
+import type { ToolCard } from "@mcpflow/shared";
 import type { InMemoryCatalog } from "./catalog.js";
 import { estimateTokensFromText } from "./utils.js";
 

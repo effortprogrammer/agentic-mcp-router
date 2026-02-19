@@ -6,7 +6,7 @@ import type {
   WorkingSetState,
   WorkingSetUpdateInput,
   WorkingSetUpdateResult
-} from "@mcp-tool-router/shared";
+} from "@mcpflow/shared";
 
 export interface CatalogStats {
   tools: number;

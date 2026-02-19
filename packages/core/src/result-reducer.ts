@@ -1,5 +1,5 @@
 import type { ResultReducer } from "./core.js";
-import type { ReducedToolResult } from "@mcp-tool-router/shared";
+import type { ReducedToolResult } from "@mcpflow/shared";
 import { byteLength, stableStringify, truncateByBytes } from "./utils.js";
 
 export interface ResultReducerOptions {

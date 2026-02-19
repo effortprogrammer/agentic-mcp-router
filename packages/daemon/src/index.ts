@@ -1,10 +1,10 @@
-import { createRouterCore } from "@mcp-tool-router/core";
-import type { RouterCore } from "@mcp-tool-router/core";
+import { createRouterCore } from "@mcpflow/core";
+import type { RouterCore } from "@mcpflow/core";
 import type {
   SearchQueryInput,
   ToolCard,
   WorkingSetUpdateInput,
-} from "@mcp-tool-router/shared";
+} from "@mcpflow/shared";
 
 export interface DaemonOptions {
   transport: "stdio" | "http";

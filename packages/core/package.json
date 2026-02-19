@@ -1,5 +1,5 @@
 {
-  "name": "@mcp-tool-router/core",
+  "name": "@mcpflow/core",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
@@ -12,6 +12,6 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@mcp-tool-router/shared": "0.1.0"
+    "@mcpflow/shared": "0.1.0"
   }
 }
