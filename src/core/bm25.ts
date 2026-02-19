@@ -10,8 +10,8 @@ import type {
   ToolCard,
   ToolSearchDoc,
   ToolSearchHit
-} from "@mcpflow/shared";
-import { DEFAULT_WEIGHTS } from "@mcpflow/shared";
+} from "../shared/index.js";
+import { DEFAULT_WEIGHTS } from "../shared/index.js";
 
 export interface CatalogProvider {
   getSnapshot(): CatalogSnapshot;

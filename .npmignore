@@ -1,0 +1,32 @@
+# Source files
+src/
+*.ts
+!*.d.ts
+
+# Development
+.git/
+.gitignore
+node_modules/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.ruff_cache/
+
+# Build artifacts
+*.js.map
+*.d.ts.map
+
+# Documentation
+*.md
+!README.md
+docs/
+examples/
+
+# Misc
+.flock/
+.maestro-traces/
+.sisyphus/
+scripts/

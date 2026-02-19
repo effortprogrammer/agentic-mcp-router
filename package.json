@@ -1,19 +1,44 @@
 {
   "name": "mcpflow",
-  "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "MCP tool router with BM25-powered search and on-demand loading",
   "license": "MIT",
-  "scripts": {
-    "build": "tsc -p packages/shared/tsconfig.json && tsc -p packages/core/tsconfig.json && tsc -p packages/daemon/tsconfig.json && tsc -p packages/cli/tsconfig.json"
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "mcpflow": "dist/index.js"
   },
-  "devDependencies": {
-    "@types/node": "^22.13.1",
-    "typescript": "^5.4.5"
+  "files": [
+    "dist",
+    "mcp-server"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "postinstall": "node -e \"const fs=require('fs'); if(fs.existsSync('dist/postinstall.js')) require('./dist/postinstall.js');\""
   },
   "engines": {
     "node": ">=20"
   },
-  "workspaces": [
-    "packages/*"
-  ]
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "router",
+    "bm25",
+    "tool-routing",
+    "opencode",
+    "claude-code"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effortprogrammer/mcpflow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/effortprogrammer/mcpflow/issues"
+  },
+  "homepage": "https://github.com/effortprogrammer/mcpflow#readme",
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "typescript": "^5.4.5"
+  }
 }

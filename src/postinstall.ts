@@ -4,14 +4,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-
-const PIP_PACKAGE = "mcpflow";
-const PIP_GIT_URL =
-  "git+https://github.com/effortprogrammer/mcpflow.git#subdirectory=python";
+import { fileURLToPath } from "node:url";
 
 function main(): void {
-  ensurePythonPackage();
-
   const configPath = resolveConfigPath();
   if (!fs.existsSync(configPath)) {
     console.warn(
@@ -20,6 +15,8 @@ function main(): void {
     );
     return;
   }
+
+  ensurePythonPackage();
 
   const result = spawnSync(
     process.execPath,
@@ -41,8 +38,7 @@ function ensurePythonPackage(): void {
   const python = findPython();
   if (!python) {
     console.warn(
-      "[mcpflow] python3 not found. Install Python 3.10+ and run:\n" +
-        `  pip install ${PIP_PACKAGE}`,
+      "[mcpflow] python3 not found. Install Python 3.10+ to use mcpflow.",
     );
     return;
   }
@@ -51,21 +47,31 @@ function ensurePythonPackage(): void {
     return;
   }
 
-  console.log("[mcpflow] Installing Python package...");
+  const thisDir = path.dirname(fileURLToPath(import.meta.url));
+  const mcpServerDir = path.join(thisDir, "..", "mcp-server");
 
-  if (tryPipInstall(python, [PIP_PACKAGE])) {
+  if (!fs.existsSync(mcpServerDir)) {
+    console.warn(
+      "[mcpflow] Could not find bundled mcp-server directory. " +
+        "Please reinstall mcpflow or install manually:\n" +
+        "  pip install git+https://github.com/effortprogrammer/mcpflow.git#subdirectory=mcp-server",
+    );
     return;
   }
 
-  if (tryPipInstall(python, [PIP_GIT_URL])) {
+  console.log("[mcpflow] Installing Python package from bundled directory...");
+
+  if (tryPipInstall(python, [mcpServerDir])) {
+    return;
+  }
+
+  if (tryPipInstall("uv", ["pip", "install", mcpServerDir])) {
     return;
   }
 
   console.warn(
     "[mcpflow] Could not auto-install the Python package. Install manually:\n" +
-      `  pip install ${PIP_PACKAGE}\n` +
-      "  # or\n" +
-      `  pip install "${PIP_GIT_URL}"`,
+      `  pip install ${mcpServerDir}`,
   );
 }
 

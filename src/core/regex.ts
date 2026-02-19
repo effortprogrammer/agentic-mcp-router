@@ -7,7 +7,7 @@ import type {
   SearchQueryResult,
   ToolCard,
   ToolSearchHit,
-} from "@mcpflow/shared";
+} from "../shared/index.js";
 
 function escapeRegex(pattern: string): string {
   return pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

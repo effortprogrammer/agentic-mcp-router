@@ -1,5 +1,5 @@
 import type { CatalogStats, CatalogStore } from "./core.js";
-import type { ToolCard, ToolSearchDoc } from "@mcpflow/shared";
+import type { ToolCard, ToolSearchDoc } from "../shared/index.js";
 
 export interface CatalogSnapshot {
   version: number;

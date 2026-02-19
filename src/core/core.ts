@@ -6,7 +6,7 @@ import type {
   WorkingSetState,
   WorkingSetUpdateInput,
   WorkingSetUpdateResult
-} from "@mcpflow/shared";
+} from "../shared/index.js";
 
 export interface CatalogStats {
   tools: number;

@@ -1,10 +1,10 @@
-import { createRouterCore } from "@mcpflow/core";
-import type { RouterCore } from "@mcpflow/core";
+import { createRouterCore } from "../core/index.js";
+import type { RouterCore } from "../core/index.js";
 import type {
   SearchQueryInput,
   ToolCard,
   WorkingSetUpdateInput,
-} from "@mcpflow/shared";
+} from "../shared/index.js";
 
 export interface DaemonOptions {
   transport: "stdio" | "http";

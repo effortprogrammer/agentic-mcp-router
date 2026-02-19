@@ -321,7 +321,7 @@ function resolveRouterCommand(
   const defaultCommand = ["python3", "-m", ROUTER_MODULE];
 
   if (monorepoRoot) {
-    const pythonDir = path.join(monorepoRoot, "router-runtime");
+    const pythonDir = path.join(monorepoRoot, "mcp-server");
     if (
       fs.existsSync(pythonDir) &&
       fs.existsSync(path.join(pythonDir, "mcp_tool_router"))
@@ -329,13 +329,7 @@ function resolveRouterCommand(
       env.PYTHONPATH = pythonDir;
     }
 
-    const daemonCli = path.join(
-      monorepoRoot,
-      "packages",
-      "daemon",
-      "dist",
-      "cli.js",
-    );
+    const daemonCli = path.join(monorepoRoot, "dist", "daemon", "cli.js");
     if (fs.existsSync(daemonCli)) {
       env.ROUTERD = `node ${daemonCli}`;
     }
@@ -403,8 +397,8 @@ function findMonorepoRoot(): string | null {
   for (let i = 0; i < 8 && dir !== root; i++) {
     dir = path.dirname(dir);
     if (
-      fs.existsSync(path.join(dir, "router-runtime", "mcp_tool_router")) &&
-      fs.existsSync(path.join(dir, "packages", "daemon"))
+      fs.existsSync(path.join(dir, "mcp-server", "mcp_tool_router")) &&
+      fs.existsSync(path.join(dir, "dist", "index.js"))
     ) {
       return dir;
     }
@@ -425,7 +419,7 @@ function findPython(): string | null {
 function printHelp(): void {
   console.log(
     [
-      "tool-router opencode install [options]",
+      "mcpflow opencode install [options]",
       "",
       "Options:",
       "  --config <path>           OpenCode config path (default: ~/.config/opencode/opencode.json)",
