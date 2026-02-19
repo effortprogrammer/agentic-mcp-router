@@ -1,5 +1,5 @@
 {
-  "name": "mcpflow",
+  "name": "mcpflow-router",
   "version": "0.2.0",
   "description": "MCP tool router with BM25-powered search and on-demand loading",
   "license": "MIT",
@@ -7,7 +7,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "mcpflow": "dist/index.js"
+    "mcpflow-router": "dist/index.js"
   },
   "files": [
     "dist",
@@ -31,12 +31,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/effortprogrammer/mcpflow.git"
+    "url": "https://github.com/effortprogrammer/mcpflow-router.git"
   },
   "bugs": {
-    "url": "https://github.com/effortprogrammer/mcpflow/issues"
+    "url": "https://github.com/effortprogrammer/mcpflow-router/issues"
   },
-  "homepage": "https://github.com/effortprogrammer/mcpflow#readme",
+  "homepage": "https://github.com/effortprogrammer/mcpflow-router#readme",
   "devDependencies": {
     "@types/node": "^22.13.1",
     "typescript": "^5.4.5"
